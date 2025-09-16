@@ -10,18 +10,29 @@ struct WorkCenterView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
-                    // 今日工作汇报
-                    todayWorkSection
-                    
-                    // 本周工作概览
-                    weeklyOverviewSection
-                    
-                    // 下周工作规划
-                    nextWeekPlanSection
+                    // 简化的工作中心界面
+                    Text("🏢 工作中心")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+
+                    Text("今日工作任务: \(workManager.todayWorkTasks.count)")
+                        .font(.headline)
+
+                    Text("本周工作任务: \(workManager.thisWeekWorkTasks.count)")
+                        .font(.headline)
+
+                    Button("生成日报") {
+                        let _ = workManager.generateDailyReport()
+                        showingDailyReport = true
+                    }
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
                 }
                 .padding()
             }
-            .navigationTitle("🏢 工作中心")
+            .navigationTitle("工作中心")
             .onAppear {
                 workManager.refreshWorkData()
             }
@@ -62,9 +73,13 @@ struct WorkCenterView: View {
             
             // 统计卡片
             HStack(spacing: 12) {
-                StatCard(title: "进行中", value: "\(workManager.todayWorkTasks.filter { !$0.isCompleted }.count)", color: .orange)
-                StatCard(title: "已完成", value: "\(workManager.todayWorkTasks.filter { $0.isCompleted }.count)", color: .green)
-                StatCard(title: "总时长", value: String(format: "%.1fh", workManager.todayWorkTasks.reduce(0) { $0 + $1.timeSpent }), color: .blue)
+                let ongoingCount = workManager.todayWorkTasks.filter { !$0.isCompleted }.count
+                let completedCount = workManager.todayWorkTasks.filter { $0.isCompleted }.count
+                let totalTime = workManager.todayWorkTasks.reduce(0.0) { $0 + $1.timeSpent }
+
+                StatCard(title: "进行中", value: "\(ongoingCount)", color: .orange)
+                StatCard(title: "已完成", value: "\(completedCount)", color: .green)
+                StatCard(title: "总时长", value: String(format: "%.1fh", totalTime), color: .blue)
             }
             
             // 今日工作任务列表
@@ -114,15 +129,17 @@ struct WorkCenterView: View {
                 }
                 
                 // 本周工作列表（简化显示）
-                ForEach(workManager.thisWeekWorkTasks.prefix(3), id: \.objectID) { task in
+                let weekTasks = Array(workManager.thisWeekWorkTasks.prefix(3))
+                ForEach(weekTasks, id: \.objectID) { task in
                     WorkTaskCard(task: task, isCompact: true) {
                         selectedTask = task
                         showingProgressUpdate = true
                     }
                 }
-                
-                if workManager.thisWeekWorkTasks.count > 3 {
-                    Text("还有 \(workManager.thisWeekWorkTasks.count - 3) 个工作任务...")
+
+                let remainingCount = workManager.thisWeekWorkTasks.count - 3
+                if remainingCount > 0 {
+                    Text("还有 \(remainingCount) 个工作任务...")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .padding(.top, 4)
@@ -218,6 +235,18 @@ struct WorkTaskCard: View {
     let task: TaskItem
     var isCompact: Bool = false
     let onProgressUpdate: () -> Void
+
+    private func formatTimeSpent(_ timeSpent: Double) -> String {
+        let hours = Int(timeSpent)
+        let minutes = Int((timeSpent - Double(hours)) * 60)
+        return hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟"
+    }
+
+    private func formatLastUpdate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM-dd HH:mm"
+        return formatter.string(from: date)
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -259,10 +288,7 @@ struct WorkTaskCard: View {
                             .foregroundColor(.secondary)
                         Spacer()
                         if task.timeSpent > 0 {
-                            let hours = Int(task.timeSpent)
-                            let minutes = Int((task.timeSpent - Double(hours)) * 60)
-                            let timeText = hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟"
-                            Text("⏱️ \(timeText)")
+                            Text("⏱️ \(formatTimeSpent(task.timeSpent))")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -274,9 +300,7 @@ struct WorkTaskCard: View {
                 }
                 
                 if let lastUpdate = task.lastProgressUpdate {
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "MM-dd HH:mm"
-                    Text("最后更新: \(formatter.string(from: lastUpdate))")
+                    Text("最后更新: \(formatLastUpdate(lastUpdate))")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -287,10 +311,7 @@ struct WorkTaskCard: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     if task.timeSpent > 0 {
-                        let hours = Int(task.timeSpent)
-                        let minutes = Int((task.timeSpent - Double(hours)) * 60)
-                        let timeText = hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟"
-                        Text("• \(timeText)")
+                        Text("• \(formatTimeSpent(task.timeSpent))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
