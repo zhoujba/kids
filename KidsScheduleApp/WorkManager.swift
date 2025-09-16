@@ -134,10 +134,10 @@ class WorkManager: ObservableObject {
     
     // MARK: - 进度管理
     func updateTaskProgress(task: TaskItem, progress: Double, timeSpent: Double, notes: String) {
-        task.workProgress = progress
-        task.timeSpent += timeSpent
-        task.progressNotes = notes
-        task.lastProgressUpdate = Date()
+        task.setSafeWorkProgress(progress)
+        task.setSafeTimeSpent(task.safeTimeSpent + timeSpent)
+        task.setSafeProgressNotes(notes)
+        task.setSafeLastProgressUpdate(Date())
         task.lastModified = Date()
         
         do {
@@ -172,7 +172,7 @@ class WorkManager: ObservableObject {
             let workTasks = try context.fetch(request)
             let completedTasks = workTasks.filter { $0.isCompleted }
             let ongoingTasks = workTasks.filter { !$0.isCompleted }
-            let totalTimeSpent = workTasks.reduce(0) { $0 + $1.timeSpent }
+            let totalTimeSpent = workTasks.reduce(0) { $0 + $1.safeTimeSpent }
             let progressUpdates = workTasks.filter { $0.lastProgressUpdate != nil }.count
             
             let report = WorkDailyReport(
@@ -198,8 +198,8 @@ class WorkManager: ObservableObject {
         let today = Date()
         guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: today) else { return }
         
-        let totalTimeSpent = thisWeekWorkTasks.reduce(0) { $0 + $1.timeSpent }
-        let averageProgress = thisWeekWorkTasks.isEmpty ? 0 : thisWeekWorkTasks.reduce(0) { $0 + $1.workProgress } / Double(thisWeekWorkTasks.count)
+        let totalTimeSpent = thisWeekWorkTasks.reduce(0) { $0 + $1.safeTimeSpent }
+        let averageProgress = thisWeekWorkTasks.isEmpty ? 0 : thisWeekWorkTasks.reduce(0) { $0 + $1.safeWorkProgress } / Double(thisWeekWorkTasks.count)
         let completedCount = thisWeekWorkTasks.filter { $0.isCompleted }.count
         let ongoingCount = thisWeekWorkTasks.filter { !$0.isCompleted }.count
         
@@ -288,27 +288,62 @@ extension TaskItem {
     var isWorkTask: Bool {
         return category == "工作"
     }
-    
-    var progressPercentage: Int {
-        return Int(workProgress)
+
+    // 安全访问工作进度字段
+    var safeWorkProgress: Double {
+        return self.value(forKey: "workProgress") as? Double ?? 0.0
     }
-    
+
+    var safeTimeSpent: Double {
+        return self.value(forKey: "timeSpent") as? Double ?? 0.0
+    }
+
+    var safeProgressNotes: String? {
+        return self.value(forKey: "progressNotes") as? String
+    }
+
+    var safeLastProgressUpdate: Date? {
+        return self.value(forKey: "lastProgressUpdate") as? Date
+    }
+
+    var progressPercentage: Int {
+        return Int(safeWorkProgress)
+    }
+
     var formattedTimeSpent: String {
+        let timeSpent = safeTimeSpent
         if timeSpent < 1 {
             return String(format: "%.1f小时", timeSpent)
         } else {
             return String(format: "%.1f小时", timeSpent)
         }
     }
-    
+
     var hasProgressUpdate: Bool {
-        return lastProgressUpdate != nil
+        return safeLastProgressUpdate != nil
     }
-    
+
     var formattedLastUpdate: String {
-        guard let lastUpdate = lastProgressUpdate else { return "未更新" }
+        guard let lastUpdate = safeLastProgressUpdate else { return "未更新" }
         let formatter = DateFormatter()
         formatter.dateFormat = "MM-dd HH:mm"
         return formatter.string(from: lastUpdate)
+    }
+
+    // 安全设置工作进度字段
+    func setSafeWorkProgress(_ value: Double) {
+        self.setValue(value, forKey: "workProgress")
+    }
+
+    func setSafeTimeSpent(_ value: Double) {
+        self.setValue(value, forKey: "timeSpent")
+    }
+
+    func setSafeProgressNotes(_ value: String?) {
+        self.setValue(value, forKey: "progressNotes")
+    }
+
+    func setSafeLastProgressUpdate(_ value: Date?) {
+        self.setValue(value, forKey: "lastProgressUpdate")
     }
 }

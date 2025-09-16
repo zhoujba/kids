@@ -12,8 +12,8 @@ struct WorkProgressUpdateView: View {
     
     init(task: TaskItem) {
         self.task = task
-        self._progress = State(initialValue: task.workProgress)
-        self._progressNotes = State(initialValue: task.progressNotes ?? "")
+        self._progress = State(initialValue: task.safeWorkProgress)
+        self._progressNotes = State(initialValue: task.safeProgressNotes ?? "")
     }
     
     var body: some View {

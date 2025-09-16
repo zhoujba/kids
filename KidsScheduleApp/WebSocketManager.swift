@@ -215,7 +215,10 @@ class WebSocketManager: NSObject, ObservableObject {
                                     deviceId: dataDict["device_id"] as? String ?? "",
                                     recordId: dataDict["record_id"] as? String,
                                     createdAt: dataDict["created_at"] as? String,
-                                    updatedAt: dataDict["updated_at"] as? String
+                                    updatedAt: dataDict["updated_at"] as? String,
+                                    workProgress: dataDict["work_progress"] as? Double ?? 0,
+                                    timeSpent: dataDict["time_spent"] as? Double ?? 0,
+                                    progressNotes: dataDict["progress_notes"] as? String
                                 )
                                 taskDataArray.append(taskData)
                             }
@@ -245,7 +248,10 @@ class WebSocketManager: NSObject, ObservableObject {
                                 deviceId: dataDict["device_id"] as? String ?? "",
                                 recordId: dataDict["record_id"] as? String,
                                 createdAt: dataDict["created_at"] as? String,
-                                updatedAt: dataDict["updated_at"] as? String
+                                updatedAt: dataDict["updated_at"] as? String,
+                                workProgress: dataDict["work_progress"] as? Double ?? 0,
+                                timeSpent: dataDict["time_spent"] as? Double ?? 0,
+                                progressNotes: dataDict["progress_notes"] as? String
                             )
 
                     print("✅ 手动构建TaskData成功: \(taskData.title), category: \(taskData.category ?? "nil"), priority: \(taskData.priority ?? 0)")
@@ -270,7 +276,10 @@ class WebSocketManager: NSObject, ObservableObject {
                                 deviceId: dataDict["device_id"] as? String ?? "",
                                 recordId: dataDict["record_id"] as? String,
                                 createdAt: dataDict["created_at"] as? String,
-                                updatedAt: dataDict["updated_at"] as? String
+                                updatedAt: dataDict["updated_at"] as? String,
+                                workProgress: dataDict["work_progress"] as? Double ?? 0,
+                                timeSpent: dataDict["time_spent"] as? Double ?? 0,
+                                progressNotes: dataDict["progress_notes"] as? String
                             )
 
                     print("✅ 手动构建TaskData成功: \(taskData.title), category: \(taskData.category ?? "nil"), priority: \(taskData.priority ?? 0)")
@@ -295,7 +304,10 @@ class WebSocketManager: NSObject, ObservableObject {
                                 deviceId: dataDict["device_id"] as? String ?? "",
                                 recordId: dataDict["record_id"] as? String,
                                 createdAt: dataDict["created_at"] as? String,
-                                updatedAt: dataDict["updated_at"] as? String
+                                updatedAt: dataDict["updated_at"] as? String,
+                                workProgress: dataDict["work_progress"] as? Double ?? 0,
+                                timeSpent: dataDict["time_spent"] as? Double ?? 0,
+                                progressNotes: dataDict["progress_notes"] as? String
                             )
 
                     print("✅ 手动构建TaskData成功: \(taskData.title), category: \(taskData.category ?? "nil"), priority: \(taskData.priority ?? 0)")
@@ -468,9 +480,9 @@ class WebSocketManager: NSObject, ObservableObject {
                     newTask.lastModified = Date()
 
                     // 设置工作进度字段
-                    newTask.workProgress = taskData.workProgress ?? 0
-                    newTask.timeSpent = taskData.timeSpent ?? 0
-                    newTask.progressNotes = taskData.progressNotes
+                    newTask.setSafeWorkProgress(taskData.workProgress ?? 0)
+                    newTask.setSafeTimeSpent(taskData.timeSpent ?? 0)
+                    newTask.setSafeProgressNotes(taskData.progressNotes)
 
                     // 解析日期
                     if let dueDateString = taskData.dueDate, !dueDateString.isEmpty {
@@ -543,18 +555,18 @@ class WebSocketManager: NSObject, ObservableObject {
                     }
 
                     // 更新工作进度字段
-                    if let workProgress = taskData.workProgress, task.workProgress != workProgress {
-                        task.workProgress = workProgress
+                    if let workProgress = taskData.workProgress, task.safeWorkProgress != workProgress {
+                        task.setSafeWorkProgress(workProgress)
                         hasChanges = true
                     }
 
-                    if let timeSpent = taskData.timeSpent, task.timeSpent != timeSpent {
-                        task.timeSpent = timeSpent
+                    if let timeSpent = taskData.timeSpent, task.safeTimeSpent != timeSpent {
+                        task.setSafeTimeSpent(timeSpent)
                         hasChanges = true
                     }
 
-                    if task.progressNotes != taskData.progressNotes {
-                        task.progressNotes = taskData.progressNotes
+                    if task.safeProgressNotes != taskData.progressNotes {
+                        task.setSafeProgressNotes(taskData.progressNotes)
                         hasChanges = true
                     }
 
@@ -719,9 +731,9 @@ class WebSocketManager: NSObject, ObservableObject {
             recordId: task.recordID ?? "",
             createdAt: ISO8601DateFormatter().string(from: Date()),
             updatedAt: ISO8601DateFormatter().string(from: Date()),
-            workProgress: task.workProgress,
-            timeSpent: task.timeSpent,
-            progressNotes: task.progressNotes
+            workProgress: task.safeWorkProgress,
+            timeSpent: task.safeTimeSpent,
+            progressNotes: task.safeProgressNotes
         )
 
         let message = WSMessage(type: "create_task", data: AnyCodable(taskData))
@@ -748,9 +760,9 @@ class WebSocketManager: NSObject, ObservableObject {
             recordId: task.recordID ?? "",
             createdAt: createdAtString,
             updatedAt: updatedAtString,
-            workProgress: task.workProgress,
-            timeSpent: task.timeSpent,
-            progressNotes: task.progressNotes
+            workProgress: task.safeWorkProgress,
+            timeSpent: task.safeTimeSpent,
+            progressNotes: task.safeProgressNotes
         )
 
         print("✏️ 准备更新任务，recordId: \(task.recordID ?? "无"), title: \(task.title ?? "")")

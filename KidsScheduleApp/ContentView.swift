@@ -242,14 +242,14 @@ struct TaskRowView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()
-                        if task.timeSpent > 0 {
+                        if task.safeTimeSpent > 0 {
                             Text("⏱️ \(task.formattedTimeSpent)")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
 
-                    ProgressView(value: task.workProgress, total: 100)
+                    ProgressView(value: task.safeWorkProgress, total: 100)
                         .progressViewStyle(LinearProgressViewStyle(tint: task.isCompleted ? .green : .blue))
                         .scaleEffect(x: 1, y: 0.6)
                 }

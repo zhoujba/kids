@@ -81,9 +81,34 @@ class PersistenceController {
         if inMemory {
             container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
         }
+
+        // 配置自动迁移
+        container.persistentStoreDescriptions.forEach { storeDescription in
+            storeDescription.shouldMigrateStoreAutomatically = true
+            storeDescription.shouldInferMappingModelAutomatically = true
+        }
+
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
             if let error = error as NSError? {
+                print("❌ Core Data加载失败: \(error), \(error.userInfo)")
+                // 在开发阶段，如果遇到迁移问题，可以删除并重新创建数据库
+                #if DEBUG
+                print("🔄 尝试删除并重新创建数据库...")
+                if let url = storeDescription.url {
+                    try? FileManager.default.removeItem(at: url)
+                    // 重新加载
+                    self.container.loadPersistentStores { _, error in
+                        if let error = error {
+                            fatalError("重新创建数据库失败: \(error)")
+                        }
+                        print("✅ 数据库重新创建成功")
+                    }
+                }
+                #else
                 fatalError("Unresolved error \(error), \(error.userInfo)")
+                #endif
+            } else {
+                print("✅ Core Data加载成功")
             }
         })
         container.viewContext.automaticallyMergesChangesFromParent = true
