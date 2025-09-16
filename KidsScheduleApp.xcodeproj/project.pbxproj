@@ -31,6 +31,7 @@
 		A35537312E77D25600384D80 /* WorkProgressUpdateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35537302E77D25600384D80 /* WorkProgressUpdateView.swift */; };
 		A35537322E77D25600384D81 /* DailyReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35537312E77D25600384D81 /* DailyReportView.swift */; };
 		A35537332E77D25600384D82 /* TaskItem+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35537322E77D25600384D82 /* TaskItem+Extensions.swift */; };
+		A35537342E77D25600384D83 /* WorkAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35537332E77D25600384D83 /* WorkAnalyticsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +61,7 @@
 		A35537302E77D25600384D80 /* WorkProgressUpdateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkProgressUpdateView.swift; sourceTree = "<group>"; };
 		A35537312E77D25600384D81 /* DailyReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyReportView.swift; sourceTree = "<group>"; };
 		A35537322E77D25600384D82 /* TaskItem+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TaskItem+Extensions.swift"; sourceTree = "<group>"; };
+		A35537332E77D25600384D83 /* WorkAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkAnalyticsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -102,6 +104,7 @@
 				A35537302E77D25600384D80 /* WorkProgressUpdateView.swift */,
 				A35537312E77D25600384D81 /* DailyReportView.swift */,
 				A35537322E77D25600384D82 /* TaskItem+Extensions.swift */,
+				A35537332E77D25600384D83 /* WorkAnalyticsView.swift */,
 				A1234567890123456789036 /* Info.plist */,
 				A1234567890123456789006 /* Assets.xcassets */,
 				A1234567890123456789010 /* DataModel.xcdatamodeld */,
@@ -214,6 +217,7 @@
 				A35537312E77D25600384D80 /* WorkProgressUpdateView.swift in Sources */,
 				A35537322E77D25600384D81 /* DailyReportView.swift in Sources */,
 				A35537332E77D25600384D82 /* TaskItem+Extensions.swift in Sources */,
+				A35537342E77D25600384D83 /* WorkAnalyticsView.swift in Sources */,
 				A1234567890123456789001 /* KidsScheduleAppApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -31,12 +31,49 @@ struct WorkWeeklyOverview {
     let averageProgress: Double
     let completedCount: Int
     let ongoingCount: Int
-    
+
     var formattedWeekRange: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM月dd日"
         return "\(formatter.string(from: weekStart)) - \(formatter.string(from: weekEnd))"
     }
+
+    var completionRate: Double {
+        guard !allWorkTasks.isEmpty else { return 0 }
+        return Double(completedCount) / Double(allWorkTasks.count) * 100
+    }
+
+    var averageTimePerTask: Double {
+        guard !allWorkTasks.isEmpty else { return 0 }
+        return totalTimeSpent / Double(allWorkTasks.count)
+    }
+
+    var productivityScore: Double {
+        // 综合评分：完成率 * 0.6 + 平均进度 * 0.4
+        return completionRate * 0.6 + averageProgress * 0.4
+    }
+}
+
+// MARK: - 工作分析数据
+struct WorkAnalytics {
+    let weeklyTrend: [WeeklyData]
+    let categoryBreakdown: [CategoryData]
+    let productivityInsights: [String]
+    let recommendations: [String]
+}
+
+struct WeeklyData {
+    let weekStart: Date
+    let tasksCompleted: Int
+    let totalHours: Double
+    let averageProgress: Double
+}
+
+struct CategoryData {
+    let category: String
+    let taskCount: Int
+    let timeSpent: Double
+    let completionRate: Double
 }
 
 // MARK: - 工作管理器
@@ -48,6 +85,7 @@ class WorkManager: ObservableObject {
     @Published var nextWeekWorkTasks: [TaskItem] = []
     @Published var lastDailyReport: WorkDailyReport?
     @Published var weeklyOverview: WorkWeeklyOverview?
+    @Published var workAnalytics: WorkAnalytics?
     
     private var context: NSManagedObjectContext {
         return PersistenceController.shared.container.viewContext
@@ -66,6 +104,7 @@ class WorkManager: ObservableObject {
             self.loadThisWeekWorkTasks()
             self.loadNextWeekWorkTasks()
             self.generateWeeklyOverview()
+            self.generateWorkAnalytics()
         }
     }
     
@@ -136,9 +175,9 @@ class WorkManager: ObservableObject {
     
     // MARK: - 进度管理
     func updateTaskProgress(task: TaskItem, progress: Double, timeSpent: Double, notes: String) {
-        task.setSafeWorkProgress(progress)
-        task.setSafeTimeSpent(task.safeTimeSpent + timeSpent)
-        task.setSafeProgressNotes(notes)
+        task.workProgress = progress
+        task.timeSpent = task.timeSpent + timeSpent
+        task.progressNotes = notes
         task.lastProgressUpdate = Date()
         task.lastModified = Date()
         
@@ -200,8 +239,8 @@ class WorkManager: ObservableObject {
         let today = Date()
         guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: today) else { return }
         
-        let totalTimeSpent = thisWeekWorkTasks.reduce(0) { $0 + $1.safeTimeSpent }
-        let averageProgress = thisWeekWorkTasks.isEmpty ? 0 : thisWeekWorkTasks.reduce(0) { $0 + $1.safeWorkProgress } / Double(thisWeekWorkTasks.count)
+        let totalTimeSpent = thisWeekWorkTasks.reduce(0) { $0 + $1.timeSpent }
+        let averageProgress = thisWeekWorkTasks.isEmpty ? 0 : thisWeekWorkTasks.reduce(0) { $0 + $1.workProgress } / Double(thisWeekWorkTasks.count)
         let completedCount = thisWeekWorkTasks.filter { $0.isCompleted }.count
         let ongoingCount = thisWeekWorkTasks.filter { !$0.isCompleted }.count
         
@@ -217,7 +256,163 @@ class WorkManager: ObservableObject {
         
         print("📈 生成周度概览: \(thisWeekWorkTasks.count)个任务, 平均进度\(String(format: "%.1f", averageProgress))%")
     }
-    
+
+    // MARK: - 工作分析
+    private func generateWorkAnalytics() {
+        let weeklyTrend = generateWeeklyTrend()
+        let categoryBreakdown = generateCategoryBreakdown()
+        let insights = generateProductivityInsights()
+        let recommendations = generateRecommendations()
+
+        workAnalytics = WorkAnalytics(
+            weeklyTrend: weeklyTrend,
+            categoryBreakdown: categoryBreakdown,
+            productivityInsights: insights,
+            recommendations: recommendations
+        )
+
+        print("📊 生成工作分析数据: \(weeklyTrend.count)周趋势, \(categoryBreakdown.count)个分类")
+    }
+
+    private func generateWeeklyTrend() -> [WeeklyData] {
+        let calendar = Calendar.current
+        let today = Date()
+        var weeklyData: [WeeklyData] = []
+
+        // 生成过去4周的数据
+        for weekOffset in 0..<4 {
+            guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: today),
+                  let weekInterval = calendar.dateInterval(of: .weekOfYear, for: weekStart) else { continue }
+
+            let weekTasks = getWorkTasksForWeek(weekInterval)
+            let completedTasks = weekTasks.filter { $0.isCompleted }.count
+            let totalHours = weekTasks.reduce(0) { $0 + $1.timeSpent }
+            let avgProgress = weekTasks.isEmpty ? 0 : weekTasks.reduce(0) { $0 + $1.workProgress } / Double(weekTasks.count)
+
+            weeklyData.append(WeeklyData(
+                weekStart: weekInterval.start,
+                tasksCompleted: completedTasks,
+                totalHours: totalHours,
+                averageProgress: avgProgress
+            ))
+        }
+
+        return weeklyData.reversed() // 按时间顺序排列
+    }
+
+    private func generateCategoryBreakdown() -> [CategoryData] {
+        let request: NSFetchRequest<TaskItem> = TaskItem.fetchRequest()
+        let calendar = Calendar.current
+        let oneMonthAgo = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+
+        request.predicate = NSPredicate(format: "dueDate >= %@", oneMonthAgo as NSDate)
+
+        do {
+            let allTasks = try context.fetch(request)
+            let groupedTasks = Dictionary(grouping: allTasks) { $0.category ?? "未分类" }
+
+            return groupedTasks.map { category, tasks in
+                let workTasks = tasks.filter { $0.category == "工作" }
+                let completedCount = workTasks.filter { $0.isCompleted }.count
+                let totalTime = workTasks.reduce(0) { $0 + $1.timeSpent }
+                let completionRate = workTasks.isEmpty ? 0 : Double(completedCount) / Double(workTasks.count) * 100
+
+                return CategoryData(
+                    category: category,
+                    taskCount: workTasks.count,
+                    timeSpent: totalTime,
+                    completionRate: completionRate
+                )
+            }.filter { $0.taskCount > 0 }
+        } catch {
+            print("❌ 获取分类数据失败: \(error)")
+            return []
+        }
+    }
+
+    private func generateProductivityInsights() -> [String] {
+        var insights: [String] = []
+
+        guard let overview = weeklyOverview else { return insights }
+
+        // 完成率分析
+        if overview.completionRate >= 80 {
+            insights.append("🎉 本周完成率达到\(String(format: "%.1f", overview.completionRate))%，表现优秀！")
+        } else if overview.completionRate >= 60 {
+            insights.append("👍 本周完成率\(String(format: "%.1f", overview.completionRate))%，还有提升空间")
+        } else {
+            insights.append("⚠️ 本周完成率\(String(format: "%.1f", overview.completionRate))%，需要关注任务管理")
+        }
+
+        // 时间投入分析
+        if overview.totalTimeSpent >= 40 {
+            insights.append("💪 本周工作时间\(String(format: "%.1f", overview.totalTimeSpent))小时，投入充足")
+        } else if overview.totalTimeSpent >= 20 {
+            insights.append("⏰ 本周工作时间\(String(format: "%.1f", overview.totalTimeSpent))小时，可适当增加")
+        } else {
+            insights.append("📈 本周工作时间\(String(format: "%.1f", overview.totalTimeSpent))小时，建议增加投入")
+        }
+
+        // 平均进度分析
+        if overview.averageProgress >= 80 {
+            insights.append("🚀 任务平均进度\(String(format: "%.1f", overview.averageProgress))%，执行力强")
+        } else if overview.averageProgress >= 50 {
+            insights.append("📊 任务平均进度\(String(format: "%.1f", overview.averageProgress))%，稳步推进")
+        } else {
+            insights.append("🎯 任务平均进度\(String(format: "%.1f", overview.averageProgress))%，需要加快节奏")
+        }
+
+        return insights
+    }
+
+    private func generateRecommendations() -> [String] {
+        var recommendations: [String] = []
+
+        guard let overview = weeklyOverview else { return recommendations }
+
+        // 基于完成率的建议
+        if overview.completionRate < 60 {
+            recommendations.append("建议将大任务分解为小任务，提高完成率")
+            recommendations.append("设置每日工作目标，保持稳定的工作节奏")
+        }
+
+        // 基于时间投入的建议
+        if overview.averageTimePerTask < 2 {
+            recommendations.append("任务时间投入较少，可以考虑增加深度工作时间")
+        } else if overview.averageTimePerTask > 8 {
+            recommendations.append("单个任务时间过长，建议拆分为更小的子任务")
+        }
+
+        // 基于进度的建议
+        if overview.averageProgress < 50 {
+            recommendations.append("定期更新任务进度，保持工作可视化")
+            recommendations.append("使用番茄工作法，提高专注度和执行效率")
+        }
+
+        // 通用建议
+        recommendations.append("每日18:00查看工作汇报，及时调整工作计划")
+        recommendations.append("利用工作中心功能，统一管理所有工作任务")
+
+        return recommendations
+    }
+
+    private func getWorkTasksForWeek(_ weekInterval: DateInterval) -> [TaskItem] {
+        let request: NSFetchRequest<TaskItem> = TaskItem.fetchRequest()
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: "category == %@", "工作"),
+            NSPredicate(format: "dueDate >= %@ AND dueDate < %@",
+                       weekInterval.start as NSDate,
+                       weekInterval.end as NSDate)
+        ])
+
+        do {
+            return try context.fetch(request)
+        } catch {
+            print("❌ 获取周度工作任务失败: \(error)")
+            return []
+        }
+    }
+
     // MARK: - 自动汇报
     private func setupDailyReportTimer() {
         // 计算下一个18:00的时间

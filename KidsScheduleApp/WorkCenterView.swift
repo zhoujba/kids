@@ -5,34 +5,19 @@ struct WorkCenterView: View {
     @State private var showingProgressUpdate = false
     @State private var selectedTask: TaskItem?
     @State private var showingDailyReport = false
+    @State private var showingAnalytics = false
     
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
-                    // 简化的工作中心界面
-                    Text("🏢 工作中心")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-
-                    Text("今日工作任务: \(workManager.todayWorkTasks.count)")
-                        .font(.headline)
-
-                    Text("本周工作任务: \(workManager.thisWeekWorkTasks.count)")
-                        .font(.headline)
-
-                    Button("生成日报") {
-                        let _ = workManager.generateDailyReport()
-                        showingDailyReport = true
-                    }
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
+                    todayWorkSection
+                    weeklyOverviewSection
+                    nextWeekPlanSection
                 }
                 .padding()
             }
-            .navigationTitle("工作中心")
+            .navigationTitle("🏢 工作中心")
             .onAppear {
                 workManager.refreshWorkData()
             }
@@ -46,9 +31,12 @@ struct WorkCenterView: View {
                     DailyReportView(report: report)
                 }
             }
+            .sheet(isPresented: $showingAnalytics) {
+                WorkAnalyticsView()
+            }
         }
     }
-    
+
     // MARK: - 今日工作汇报
     private var todayWorkSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -59,18 +47,30 @@ struct WorkCenterView: View {
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
-                Button("生成日报") {
-                    let _ = workManager.generateDailyReport()
-                    showingDailyReport = true
+                HStack(spacing: 8) {
+                    Button("生成日报") {
+                        let _ = workManager.generateDailyReport()
+                        showingDailyReport = true
+                    }
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.blue.opacity(0.1))
+                    .foregroundColor(.blue)
+                    .cornerRadius(8)
+
+                    Button("数据分析") {
+                        showingAnalytics = true
+                    }
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.purple.opacity(0.1))
+                    .foregroundColor(.purple)
+                    .cornerRadius(8)
                 }
-                .font(.caption)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.blue.opacity(0.1))
-                .foregroundColor(.blue)
-                .cornerRadius(8)
             }
-            
+
             // 统计卡片
             HStack(spacing: 12) {
                 let ongoingCount = workManager.todayWorkTasks.filter { !$0.isCompleted }.count
@@ -81,7 +81,7 @@ struct WorkCenterView: View {
                 StatCard(title: "已完成", value: "\(completedCount)", color: .green)
                 StatCard(title: "总时长", value: String(format: "%.1fh", totalTime), color: .blue)
             }
-            
+
             // 今日工作任务列表
             if workManager.todayWorkTasks.isEmpty {
                 Text("今日暂无工作任务")
@@ -102,7 +102,7 @@ struct WorkCenterView: View {
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
-    
+
     // MARK: - 本周工作概览
     private var weeklyOverviewSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -119,7 +119,7 @@ struct WorkCenterView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            
+
             if let overview = workManager.weeklyOverview {
                 // 周度统计
                 HStack(spacing: 12) {
@@ -127,7 +127,7 @@ struct WorkCenterView: View {
                     StatCard(title: "已完成", value: "\(overview.completedCount)", color: .green)
                     StatCard(title: "平均进度", value: "\(Int(overview.averageProgress))%", color: .purple)
                 }
-                
+
                 // 本周工作列表（简化显示）
                 let weekTasks = Array(workManager.thisWeekWorkTasks.prefix(3))
                 ForEach(weekTasks, id: \.objectID) { task in
@@ -145,7 +145,7 @@ struct WorkCenterView: View {
                         .padding(.top, 4)
                 }
             } else {
-                Text("本周暂无工作任务")
+                Text("正在加载本周工作数据...")
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
@@ -156,19 +156,19 @@ struct WorkCenterView: View {
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
-    
+
     // MARK: - 下周工作规划
     private var nextWeekPlanSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "calendar.badge.plus")
                     .foregroundColor(.green)
-                Text("📋 下周工作规划")
+                Text("📅 下周工作规划")
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
-                Button("添加工作") {
-                    // TODO: 添加下周工作
+                Button("添加计划") {
+                    // TODO: 实现添加下周工作计划功能
                 }
                 .font(.caption)
                 .padding(.horizontal, 12)
@@ -177,17 +177,16 @@ struct WorkCenterView: View {
                 .foregroundColor(.green)
                 .cornerRadius(8)
             }
-            
+
             if workManager.nextWeekWorkTasks.isEmpty {
                 VStack(spacing: 8) {
-                    Image(systemName: "calendar.badge.plus")
-                        .font(.largeTitle)
-                        .foregroundColor(.secondary)
-                    Text("下周暂无工作安排")
-                        .foregroundColor(.secondary)
-                    Text("点击上方按钮添加下周工作")
+                    Text("💡 下周工作规划")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text("暂无下周工作计划，建议提前规划工作安排")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding()
