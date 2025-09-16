@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# 儿童任务管理应用 - 演示脚本
-# 快速演示项目的主要功能
+# TaskFlow - 演示脚本
+# 专业的个人效率提升工具演示
 
 set -e
 
@@ -24,7 +24,7 @@ WEB="🌐"
 PHONE="📱"
 COMPUTER="💻"
 
-echo -e "${CYAN}${ROCKET} 儿童任务管理应用 - 功能演示${NC}"
+echo -e "${CYAN}${ROCKET} TaskFlow - 专业效率工具演示${NC}"
 echo -e "${CYAN}========================================${NC}"
 
 echo -e "${BLUE}${INFO} 项目概述：${NC}"
