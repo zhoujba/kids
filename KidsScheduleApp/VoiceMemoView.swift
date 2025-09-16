@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import UIKit
 
 struct VoiceMemoView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -220,15 +221,22 @@ struct VoiceMemoView: View {
         newMemo.createdDate = Date()
         newMemo.dueDate = Date()
         newMemo.isCompleted = false
+        newMemo.deviceId = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+        newMemo.recordID = UUID().uuidString
         newMemo.lastModified = Date()
-        newMemo.needsSync = true
-        MySQLSyncManager.shared.markTaskForSync(newMemo)
+        newMemo.needsSync = false // 禁用MySQL同步，使用WebSocket实时同步
         
         do {
             try viewContext.save()
+
+            // 立即通过WebSocket同步
+            Task {
+                await WebSocketManager.shared.createTask(newMemo)
+            }
+
             saveAlertMessage = "备忘录保存成功！"
             showingSaveAlert = true
-            
+
             // 延迟关闭视图
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 dismiss()

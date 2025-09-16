@@ -7,8 +7,8 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // MySQL同步状态栏
-            MySQLSyncStatusView()
+            // WebSocket实时同步状态栏
+            WebSocketStatusBar()
                 .padding(.horizontal)
                 .padding(.top, 8)
 
@@ -53,7 +53,8 @@ struct TaskListView: View {
         sortDescriptors: [NSSortDescriptor(keyPath: \TaskItem.dueDate, ascending: true)],
         animation: .default)
     private var tasks: FetchedResults<TaskItem>
-    
+
+    @StateObject private var webSocketManager = WebSocketManager.shared
     @State private var showingAddTask = false
     @State private var showingVoiceMemo = false
     
@@ -62,10 +63,25 @@ struct TaskListView: View {
             List {
                 ForEach(tasks) { task in
                     TaskRowView(task: task)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button("删除", role: .destructive) {
+                                deleteTask(task)
+                            }
+                        }
                 }
                 .onDelete(perform: deleteTasks)
             }
             .navigationTitle("儿子的事项")
+            .onChange(of: webSocketManager.lastUpdateTime) { _ in
+                // WebSocket数据更新时，强制刷新视图
+                print("🔄 WebSocket数据更新，刷新任务列表")
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .taskDataUpdated)) { _ in
+                // 接收到任务数据更新通知时刷新
+                print("📢 收到任务数据更新通知，刷新UI")
+                // 强制刷新FetchRequest
+                viewContext.refreshAllObjects()
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
@@ -97,15 +113,56 @@ struct TaskListView: View {
         }
     }
     
+    private func deleteTask(_ task: TaskItem) {
+        // 异步处理单个任务删除操作
+        Task {
+            // 先通过WebSocket API删除服务器上的任务
+            await WebSocketManager.shared.deleteTask(task)
+
+            // WebSocket消息发送完成后，在主线程删除本地任务
+            await MainActor.run {
+                withAnimation {
+                    // 从本地删除
+                    viewContext.delete(task)
+
+                    do {
+                        try viewContext.save()
+                        print("✅ 本地任务删除成功: \(task.title ?? "未知任务")")
+
+                    } catch {
+                        let nsError = error as NSError
+                        fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+                    }
+                }
+            }
+        }
+    }
+
     private func deleteTasks(offsets: IndexSet) {
-        withAnimation {
-            offsets.map { tasks[$0] }.forEach(viewContext.delete)
-            
-            do {
-                try viewContext.save()
-            } catch {
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+        let tasksToDelete = offsets.map { tasks[$0] }
+
+        // 异步处理删除操作
+        Task {
+            // 先通过WebSocket API删除服务器上的任务
+            for task in tasksToDelete {
+                await WebSocketManager.shared.deleteTask(task)
+            }
+
+            // WebSocket消息发送完成后，在主线程删除本地任务
+            await MainActor.run {
+                withAnimation {
+                    // 从本地删除
+                    tasksToDelete.forEach(viewContext.delete)
+
+                    do {
+                        try viewContext.save()
+                        print("✅ 本地任务删除成功")
+
+                    } catch {
+                        let nsError = error as NSError
+                        fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+                    }
+                }
             }
         }
     }
@@ -122,9 +179,13 @@ struct TaskRowView: View {
             Button(action: {
                 task.isCompleted.toggle()
                 task.lastModified = Date()
-                task.needsSync = true
-                MySQLSyncManager.shared.markTaskForSync(task)
+                task.needsSync = false // 不再需要MySQL同步
                 try? viewContext.save()
+
+                // 立即通过WebSocket同步
+                Task {
+                    await WebSocketManager.shared.updateTask(task)
+                }
             }) {
                 Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(task.isCompleted ? .green : .gray)
@@ -163,18 +224,61 @@ struct TaskRowView: View {
 
             Spacer()
 
-            // 编辑按钮
-            Button(action: {
-                showingEditTask = true
-            }) {
-                Image(systemName: "pencil")
-                    .foregroundColor(.blue)
-                    .font(.caption)
+            // 操作按钮组 - 简洁的图标按钮
+            HStack(spacing: 12) {
+                // 编辑按钮
+                Button(action: {
+                    showingEditTask = true
+                }) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.blue)
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(PlainButtonStyle())
+
+                // iPad删除按钮 - 在iPad上显示删除按钮，因为左滑手势在Mac上可能不好用
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    Button(action: {
+                        deleteTask()
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.red)
+                            .frame(width: 24, height: 24)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
             }
         }
         .padding(.vertical, 4)
         .sheet(isPresented: $showingEditTask) {
             AddTaskView(taskToEdit: task)
+        }
+    }
+
+    private func deleteTask() {
+        // 异步处理任务删除操作
+        Task {
+            // 先通过WebSocket API删除服务器上的任务
+            await WebSocketManager.shared.deleteTask(task)
+
+            // WebSocket消息发送完成后，在主线程删除本地任务
+            await MainActor.run {
+                withAnimation {
+                    // 从本地删除
+                    viewContext.delete(task)
+
+                    do {
+                        try viewContext.save()
+                        print("✅ 任务删除成功: \(task.title ?? "未知任务")")
+
+                    } catch {
+                        let nsError = error as NSError
+                        fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+                    }
+                }
+            }
         }
     }
 }

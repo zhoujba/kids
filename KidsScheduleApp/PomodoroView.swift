@@ -4,6 +4,10 @@ import UserNotifications
 struct PomodoroView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var pomodoroTimer = PomodoroTimer()
+
+    init() {
+        // 将viewContext传递给PomodoroTimer
+    }
     
     var body: some View {
         NavigationView {
@@ -124,13 +128,14 @@ class PomodoroTimer: ObservableObject {
     @Published var currentPhase: PomodoroPhase = .work
     @Published var completedCycles = 0
     @Published var progress: Double = 1.0
-    
+
     let workDuration = 25 * 60 // 25分钟
     let breakDuration = 5 * 60 // 5分钟
     let longBreakDuration = 15 * 60 // 15分钟
-    
+
     private var timer: Timer?
     private var totalTime: Int = 25 * 60
+    private var sessionStartTime: Date?
     
     enum PomodoroPhase {
         case work
@@ -146,6 +151,9 @@ class PomodoroTimer: ObservableObject {
     
     func start() {
         isRunning = true
+        if sessionStartTime == nil {
+            sessionStartTime = Date()
+        }
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             self.tick()
         }
@@ -163,6 +171,7 @@ class PomodoroTimer: ObservableObject {
         timeRemaining = workDuration
         totalTime = workDuration
         progress = 1.0
+        sessionStartTime = nil
     }
     
     private func tick() {
@@ -178,7 +187,12 @@ class PomodoroTimer: ObservableObject {
     private func completePhase() {
         // 发送通知
         sendNotification()
-        
+
+        // 保存完成的工作会话
+        if currentPhase == .work {
+            saveCompletedSession()
+        }
+
         switch currentPhase {
         case .work:
             completedCycles += 1
@@ -197,9 +211,10 @@ class PomodoroTimer: ObservableObject {
             timeRemaining = workDuration
             totalTime = workDuration
         }
-        
+
         progress = 1.0
-        
+        sessionStartTime = nil // 重置开始时间，为下一个会话做准备
+
         // 自动开始下一阶段（可选）
         // start()
         pause() // 暂停，让用户手动开始
@@ -233,6 +248,33 @@ class PomodoroTimer: ObservableObject {
             if let error = error {
                 print("通知发送失败: \(error)")
             }
+        }
+    }
+
+    private func saveCompletedSession() {
+        guard let startTime = sessionStartTime else { return }
+
+        let context = PersistenceController.shared.container.viewContext
+        let session = PomodoroSession(context: context)
+
+        session.startTime = startTime
+        session.endTime = Date()
+        session.totalDuration = Int32(workDuration)
+        session.completedCycles = Int16(completedCycles)
+        session.isActive = false
+        session.createdDate = Date()
+        session.needsSync = false // 禁用MySQL同步，使用WebSocket实时同步
+
+        do {
+            try context.save()
+            print("番茄工作法会话已保存")
+
+            // 注释掉MySQL同步，改用WebSocket实时同步
+            // Task {
+            //     await MySQLSyncManager.shared.performSync()
+            // }
+        } catch {
+            print("保存番茄工作法会话失败: \(error)")
         }
     }
 }

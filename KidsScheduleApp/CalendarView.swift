@@ -7,7 +7,8 @@ struct CalendarView: View {
         sortDescriptors: [NSSortDescriptor(keyPath: \TaskItem.dueDate, ascending: true)],
         animation: .default)
     private var tasks: FetchedResults<TaskItem>
-    
+
+    @StateObject private var webSocketManager = WebSocketManager.shared
     @State private var selectedDate = Date()
     @State private var showingAddTask = false
     @State private var currentMonth = Date()
@@ -35,6 +36,16 @@ struct CalendarView: View {
                 selectedDateTasksView
             }
             .navigationTitle("日程安排")
+            .onChange(of: webSocketManager.lastUpdateTime) { _ in
+                // WebSocket数据更新时，强制刷新视图
+                print("🔄 WebSocket数据更新，刷新日历视图")
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .taskDataUpdated)) { _ in
+                // 接收到任务数据更新通知时刷新
+                print("📢 收到任务数据更新通知，刷新日历UI")
+                // 强制刷新FetchRequest
+                viewContext.refreshAllObjects()
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
@@ -142,6 +153,11 @@ struct CalendarView: View {
                     ForEach(tasksForDate(selectedDate)) { task in
                         DraggableTaskRowView(task: task)
                             .id(task.objectID) // 确保每个任务有唯一标识
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button("删除", role: .destructive) {
+                                    deleteTask(task)
+                                }
+                            }
                     }
                 }
                 .padding(.horizontal)
@@ -206,8 +222,21 @@ struct CalendarView: View {
         } else {
             task.dueDate = date
         }
-        
-        try? viewContext.save()
+
+        // 标记需要同步
+        task.lastModified = Date()
+        task.needsSync = false // 禁用MySQL同步，使用WebSocket实时同步
+
+        do {
+            try viewContext.save()
+
+            // 立即通过WebSocket同步
+            Task {
+                await WebSocketManager.shared.updateTask(task)
+            }
+        } catch {
+            print("保存任务日期修改失败: \(error)")
+        }
     }
     
     private var selectedDateFormatter: DateFormatter {
@@ -238,6 +267,31 @@ struct CalendarView: View {
             // 拖拽失败的触觉反馈
             let errorFeedback = UINotificationFeedbackGenerator()
             errorFeedback.notificationOccurred(.error)
+        }
+    }
+
+    private func deleteTask(_ task: TaskItem) {
+        // 异步处理单个任务删除操作
+        Task {
+            // 先通过WebSocket API删除服务器上的任务
+            await WebSocketManager.shared.deleteTask(task)
+
+            // WebSocket消息发送完成后，在主线程删除本地任务
+            await MainActor.run {
+                withAnimation {
+                    // 从本地删除
+                    viewContext.delete(task)
+
+                    do {
+                        try viewContext.save()
+                        print("✅ 日历视图任务删除成功: \(task.title ?? "未知任务")")
+
+                    } catch {
+                        let nsError = error as NSError
+                        fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+                    }
+                }
+            }
         }
     }
 }

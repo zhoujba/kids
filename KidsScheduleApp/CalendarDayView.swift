@@ -171,9 +171,13 @@ struct DraggableTaskRowView: View {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     task.isCompleted.toggle()
                     task.lastModified = Date()
-                    task.needsSync = true
-                    MySQLSyncManager.shared.markTaskForSync(task)
+                    task.needsSync = false // 禁用MySQL同步，使用WebSocket实时同步
                     try? viewContext.save()
+
+                    // 立即通过WebSocket同步
+                    Task {
+                        await WebSocketManager.shared.updateTask(task)
+                    }
                 }
             }) {
                 Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
@@ -219,23 +223,32 @@ struct DraggableTaskRowView: View {
 
             Spacer()
 
-            // 编辑按钮
-            Button(action: {
-                showingEditTask = true
-            }) {
-                HStack(spacing: 4) {
+            // 操作按钮组 - 简洁的图标按钮
+            HStack(spacing: 12) {
+                // 编辑按钮
+                Button(action: {
+                    showingEditTask = true
+                }) {
                     Image(systemName: "pencil")
-                        .font(.caption)
-                    Text("修改")
-                        .font(.caption)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.blue)
+                        .frame(width: 24, height: 24)
                 }
-                .foregroundColor(.blue)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(8)
+                .buttonStyle(PlainButtonStyle())
+
+                // iPad删除按钮 - 在iPad上显示删除按钮，因为左滑手势在Mac上可能不好用
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    Button(action: {
+                        deleteTask()
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.red)
+                            .frame(width: 24, height: 24)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
             }
-            .buttonStyle(PlainButtonStyle())
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -246,6 +259,31 @@ struct DraggableTaskRowView: View {
         )
         .sheet(isPresented: $showingEditTask) {
             AddTaskView(taskToEdit: task)
+        }
+    }
+
+    private func deleteTask() {
+        // 异步处理任务删除操作
+        Task {
+            // 先通过WebSocket API删除服务器上的任务
+            await WebSocketManager.shared.deleteTask(task)
+
+            // WebSocket消息发送完成后，在主线程删除本地任务
+            await MainActor.run {
+                withAnimation {
+                    // 从本地删除
+                    viewContext.delete(task)
+
+                    do {
+                        try viewContext.save()
+                        print("✅ 日历任务删除成功: \(task.title ?? "未知任务")")
+
+                    } catch {
+                        let nsError = error as NSError
+                        fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+                    }
+                }
+            }
         }
     }
 }

@@ -19,11 +19,13 @@
 		A1234567890123456789037 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890123456789038 /* CalendarView.swift */; };
 		A1234567890123456789039 /* CalendarDayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890123456789040 /* CalendarDayView.swift */; };
 		A1234567890123456789041 /* VoiceMemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890123456789042 /* VoiceMemoView.swift */; };
-
 		A1234567890123456789051 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890123456789052 /* SettingsView.swift */; };
 		A1234567890123456789053 /* MySQLManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890123456789054 /* MySQLManager.swift */; };
 		A1234567890123456789055 /* MySQLSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890123456789056 /* MySQLSyncManager.swift */; };
 		A1234567890123456789057 /* MySQLSyncStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890123456789058 /* MySQLSyncStatusView.swift */; };
+		A35537242E77D21B00384D7C /* WebSocketManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35537232E77D21B00384D7C /* WebSocketManager.swift */; };
+		A35537262E77D25600384D7C /* WebSocketStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35537252E77D25600384D7C /* WebSocketStatusView.swift */; };
+		A35537282E77D25600384D7D /* WebSocketStatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35537272E77D25600384D7D /* WebSocketStatusBar.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,11 +43,13 @@
 		A1234567890123456789038 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		A1234567890123456789040 /* CalendarDayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarDayView.swift; sourceTree = "<group>"; };
 		A1234567890123456789042 /* VoiceMemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemoView.swift; sourceTree = "<group>"; };
-
 		A1234567890123456789052 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A1234567890123456789054 /* MySQLManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MySQLManager.swift; sourceTree = "<group>"; };
 		A1234567890123456789056 /* MySQLSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MySQLSyncManager.swift; sourceTree = "<group>"; };
 		A1234567890123456789058 /* MySQLSyncStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MySQLSyncStatusView.swift; sourceTree = "<group>"; };
+		A35537232E77D21B00384D7C /* WebSocketManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketManager.swift; sourceTree = "<group>"; };
+		A35537252E77D25600384D7C /* WebSocketStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketStatusView.swift; sourceTree = "<group>"; };
+		A35537272E77D25600384D7D /* WebSocketStatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketStatusBar.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,11 +83,10 @@
 				A1234567890123456789042 /* VoiceMemoView.swift */,
 				A1234567890123456789038 /* CalendarView.swift */,
 				A1234567890123456789040 /* CalendarDayView.swift */,
-
 				A1234567890123456789052 /* SettingsView.swift */,
-				A1234567890123456789054 /* MySQLManager.swift */,
-				A1234567890123456789056 /* MySQLSyncManager.swift */,
-				A1234567890123456789058 /* MySQLSyncStatusView.swift */,
+				A35537252E77D25600384D7C /* WebSocketStatusView.swift */,
+				A35537272E77D25600384D7D /* WebSocketStatusBar.swift */,
+				A35537232E77D21B00384D7C /* WebSocketManager.swift */,
 				A1234567890123456789036 /* Info.plist */,
 				A1234567890123456789006 /* Assets.xcassets */,
 				A1234567890123456789010 /* DataModel.xcdatamodeld */,
@@ -187,11 +190,10 @@
 				A1234567890123456789041 /* VoiceMemoView.swift in Sources */,
 				A1234567890123456789037 /* CalendarView.swift in Sources */,
 				A1234567890123456789039 /* CalendarDayView.swift in Sources */,
-
 				A1234567890123456789051 /* SettingsView.swift in Sources */,
-				A1234567890123456789053 /* MySQLManager.swift in Sources */,
-				A1234567890123456789055 /* MySQLSyncManager.swift in Sources */,
-				A1234567890123456789057 /* MySQLSyncStatusView.swift in Sources */,
+				A35537262E77D25600384D7C /* WebSocketStatusView.swift in Sources */,
+				A35537282E77D25600384D7D /* WebSocketStatusBar.swift in Sources */,
+				A35537242E77D21B00384D7C /* WebSocketManager.swift in Sources */,
 				A1234567890123456789001 /* KidsScheduleAppApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

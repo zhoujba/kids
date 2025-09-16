@@ -1,18 +1,19 @@
 import SwiftUI
 import CoreData
 import UserNotifications
+import UIKit
 
 @main
 struct KidsScheduleAppApp: App {
     let persistenceController = PersistenceController.shared
-    let mysqlSyncManager = MySQLSyncManager.shared
+    let webSocketManager = WebSocketManager.shared
 
     init() {
         // 请求通知权限
         requestNotificationPermission()
 
-        // 配置MySQL同步
-        setupMySQLSync()
+        // 配置WebSocket实时同步
+        setupWebSocketSync()
     }
     
     var body: some Scene {
@@ -32,16 +33,16 @@ struct KidsScheduleAppApp: App {
         }
     }
 
-    private func setupMySQLSync() {
-        // 配置MySQL同步管理器
-        mysqlSyncManager.configure(with: persistenceController.container.viewContext)
-
-        // 启动MySQL同步
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            self.mysqlSyncManager.startSync()
+    private func setupWebSocketSync() {
+        // WebSocket会在初始化时自动连接
+        // 这里只需要确保应用启动后WebSocket正常工作
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            if !self.webSocketManager.isConnected {
+                self.webSocketManager.connect()
+            }
         }
 
-        print("MySQL同步已启动")
+        print("WebSocket实时同步已启动")
     }
 }
 
@@ -61,6 +62,8 @@ class PersistenceController {
         sampleTask.category = "学习"
         sampleTask.isCompleted = false
         sampleTask.createdDate = Date()
+        sampleTask.deviceId = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+        sampleTask.recordID = UUID().uuidString
         
         do {
             try viewContext.save()

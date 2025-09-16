@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import UIKit
 
 struct AddTaskView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -141,6 +142,8 @@ struct AddTaskView: View {
             task = TaskItem(context: viewContext)
             task.createdDate = Date()
             task.isCompleted = false
+            task.recordID = UUID().uuidString // 设置唯一标识符
+            task.deviceId = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
         }
 
         // 更新任务数据
@@ -150,8 +153,7 @@ struct AddTaskView: View {
         task.dueDate = dueDate
         task.priority = Int16(priority)
         task.lastModified = Date()
-        task.needsSync = true
-        MySQLSyncManager.shared.markTaskForSync(task)
+        task.needsSync = false // 不再需要MySQL同步，只通过WebSocket
 
         // 处理通知
         if enableNotification {
@@ -162,6 +164,18 @@ struct AddTaskView: View {
 
         do {
             try viewContext.save()
+
+            // 通过WebSocket实时同步
+            Task {
+                if taskToEdit != nil {
+                    // 更新任务
+                    await WebSocketManager.shared.updateTask(task)
+                } else {
+                    // 创建新任务
+                    await WebSocketManager.shared.createTask(task)
+                }
+            }
+
             dismiss()
         } catch {
             let nsError = error as NSError

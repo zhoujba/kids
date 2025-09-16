@@ -2,61 +2,45 @@ import SwiftUI
 import UserNotifications
 
 struct SettingsView: View {
-    @ObservedObject var mysqlSyncManager = MySQLSyncManager.shared
-    @ObservedObject var mysqlManager = MySQLManager.shared
     @State private var showingNotificationSettings = false
-    @State private var showingSyncDetails = false
     @State private var notificationStatus = "检查中..."
     
     var body: some View {
         NavigationView {
             List {
-                // MySQL同步设置部分
-                Section(header: Text("数据同步")) {
-                    HStack {
-                        Image(systemName: "server.rack")
-                            .foregroundColor(.blue)
-                        VStack(alignment: .leading) {
-                            Text("MySQL同步")
-                                .font(.headline)
-                            Text("通过MySQL服务器在设备间同步数据")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-
-                        VStack(alignment: .trailing) {
-                            mysqlSyncStatusIndicator
-                            if let lastSync = mysqlSyncManager.lastSyncDate {
-                                Text(formatSyncTime(lastSync))
-                                    .font(.caption2)
+                // WebSocket实时同步部分
+                Section(header: Text("实时同步")) {
+                    NavigationLink(destination: WebSocketStatusView()) {
+                        HStack {
+                            Image(systemName: "bolt.circle.fill")
+                                .foregroundColor(.green)
+                            VStack(alignment: .leading) {
+                                Text("WebSocket实时同步")
+                                    .font(.headline)
+                                Text("任务变更立即推送到所有设备")
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
                             }
                         }
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        showingSyncDetails = true
-                    }
 
-                    HStack {
-                        Image(systemName: "server.rack")
-                            .foregroundColor(mysqlManager.isConnected ? .green : .red)
-                        Text("MySQL连接")
-                        Spacer()
-                        Text(mysqlManager.isConnected ? "已连接" : "未连接")
-                            .foregroundColor(.secondary)
-                    }
-
+                    // 清除数据按钮
                     Button(action: {
-                        mysqlSyncManager.manualSync()
+                        clearAllData()
                     }) {
                         HStack {
-                            Image(systemName: "arrow.clockwise")
-                            Text("立即同步")
+                            Image(systemName: "trash.circle.fill")
+                                .foregroundColor(.red)
+                            VStack(alignment: .leading) {
+                                Text("清除所有数据")
+                                    .font(.headline)
+                                    .foregroundColor(.red)
+                                Text("删除本地所有任务数据并重新同步")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
-                    .disabled(mysqlSyncManager.syncStatus == .syncing || !mysqlManager.isConnected)
                 }
                 
                 // 通知设置部分
@@ -163,78 +147,7 @@ struct SettingsView: View {
             .onAppear {
                 checkNotificationStatus()
             }
-            .sheet(isPresented: $showingSyncDetails) {
-                VStack {
-                    Text("MySQL同步详情")
-                        .font(.title2)
-                        .padding()
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text("连接状态:")
-                            Spacer()
-                            Text(mysqlManager.isConnected ? "已连接" : "未连接")
-                                .foregroundColor(mysqlManager.isConnected ? .green : .red)
-                        }
-
-                        HStack {
-                            Text("同步状态:")
-                            Spacer()
-                            Text(mysqlSyncManager.syncStatus.description)
-                        }
-
-                        if let lastSync = mysqlSyncManager.lastSyncDate {
-                            HStack {
-                                Text("上次同步:")
-                                Spacer()
-                                Text(formatSyncTime(lastSync))
-                            }
-                        }
-                    }
-                    .padding()
-
-                    Spacer()
-
-                    Button("关闭") {
-                        showingSyncDetails = false
-                    }
-                    .padding()
-                }
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private var mysqlSyncStatusIndicator: some View {
-        switch mysqlSyncManager.syncStatus {
-        case .idle:
-            Image(systemName: "cloud")
-                .foregroundColor(.gray)
-        case .syncing:
-            ProgressView()
-                .scaleEffect(0.8)
-        case .success:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
-        case .failed(_):
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.red)
-        }
-    }
-    
-    private func formatSyncTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        let now = Date()
-        let interval = now.timeIntervalSince(date)
-        
-        if interval < 60 {
-            return "刚刚"
-        } else if interval < 3600 {
-            let minutes = Int(interval / 60)
-            return "\(minutes)分钟前"
-        } else {
-            formatter.dateFormat = "HH:mm"
-            return formatter.string(from: date)
         }
     }
     
@@ -273,6 +186,19 @@ struct SettingsView: View {
     private func clearCache() {
         // TODO: 实现清除缓存功能
         print("清除缓存功能待实现")
+    }
+
+    private func clearAllData() {
+        // 清除本地Core Data数据
+        WebSocketManager.shared.clearAllLocalTasks()
+
+        // 重新连接WebSocket并同步数据
+        WebSocketManager.shared.disconnect()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            WebSocketManager.shared.connect()
+        }
+
+        print("✅ 已清除所有本地数据并重新同步")
     }
     
     private func showUserGuide() {
