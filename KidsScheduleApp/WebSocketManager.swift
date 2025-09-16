@@ -177,17 +177,21 @@ class WebSocketManager: NSObject, ObservableObject {
         guard let data = text.data(using: .utf8) else { return }
         
         do {
-            let wsMessage = try JSONDecoder().decode(WSMessage.self, from: data)
-            
-            switch wsMessage.type {
+            // 直接解析消息类型，不解析data字段
+            if let jsonData = text.data(using: .utf8) {
+                let fullMessage = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+                guard let messageType = fullMessage?["type"] as? String else {
+                    print("❌ 无法获取消息类型")
+                    return
+                }
+
+                print("📨 处理消息类型: \(messageType)")
+
+                switch messageType {
             case "tasks_sync":
                 print("🔍 处理tasks_sync消息")
-                // 直接从原始JSON文本解析，绕过AnyCodable
-                do {
-                    if let jsonData = text.data(using: .utf8) {
-                        let fullMessage = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
-
-                        if let dataArray = fullMessage?["data"] as? [[String: Any]] {
+                // fullMessage已经在上面解析了
+                if let dataArray = fullMessage?["data"] as? [[String: Any]] {
                             print("🔍 获取到data数组，任务数量: \(dataArray.count)")
 
                             // 手动构建TaskData数组
@@ -210,27 +214,16 @@ class WebSocketManager: NSObject, ObservableObject {
                                 taskDataArray.append(taskData)
                             }
 
-                            print("✅ 手动构建TaskData数组成功，任务数量: \(taskDataArray.count)")
-                            await syncTasksFromWebSocket(taskDataArray)
-                        } else {
-                            print("❌ 无法获取data数组")
-                        }
-                    } else {
-                        print("❌ 无法转换JSON文本为Data")
-                    }
-                } catch {
-                    print("❌ 解析tasks_sync失败: \(error)")
+                    print("✅ 手动构建TaskData数组成功，任务数量: \(taskDataArray.count)")
+                    await syncTasksFromWebSocket(taskDataArray)
+                } else {
+                    print("❌ 无法获取data数组")
                 }
 
             case "task_created":
                 print("🔍 处理task_created消息")
-                // 直接从原始JSON文本解析，绕过AnyCodable
-                do {
-                    // 解析完整的JSON消息
-                    if let jsonData = text.data(using: .utf8) {
-                        let fullMessage = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
-
-                        if let dataDict = fullMessage?["data"] as? [String: Any] {
+                // fullMessage已经在上面解析了
+                if let dataDict = fullMessage?["data"] as? [String: Any] {
                             print("🔍 获取到data字典: \(dataDict.keys)")
 
                             // 手动构建TaskData对象
@@ -249,27 +242,16 @@ class WebSocketManager: NSObject, ObservableObject {
                                 updatedAt: dataDict["updated_at"] as? String
                             )
 
-                            print("✅ 手动构建TaskData成功: \(taskData.title), category: \(taskData.category ?? "nil"), priority: \(taskData.priority ?? 0)")
-                            await handleTaskCreated(taskData)
-                        } else {
-                            print("❌ 无法获取data字典")
-                        }
-                    } else {
-                        print("❌ 无法转换JSON文本为Data")
-                    }
-                } catch {
-                    print("❌ 直接解析JSON失败: \(error)")
-                    print("❌ 原始文本: \(text)")
+                    print("✅ 手动构建TaskData成功: \(taskData.title), category: \(taskData.category ?? "nil"), priority: \(taskData.priority ?? 0)")
+                    await handleTaskCreated(taskData)
+                } else {
+                    print("❌ 无法获取data字典")
                 }
 
             case "task_updated":
                 print("🔍 处理task_updated消息")
-                // 直接从原始JSON文本解析，绕过AnyCodable
-                do {
-                    if let jsonData = text.data(using: .utf8) {
-                        let fullMessage = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
-
-                        if let dataDict = fullMessage?["data"] as? [String: Any] {
+                // fullMessage已经在上面解析了
+                if let dataDict = fullMessage?["data"] as? [String: Any] {
                             let taskData = TaskData(
                                 id: dataDict["id"] as? Int,
                                 userId: dataDict["user_id"] as? String ?? "",
@@ -285,22 +267,16 @@ class WebSocketManager: NSObject, ObservableObject {
                                 updatedAt: dataDict["updated_at"] as? String
                             )
 
-                            print("✅ 手动构建TaskData成功: \(taskData.title), category: \(taskData.category ?? "nil"), priority: \(taskData.priority ?? 0)")
-                            await handleTaskUpdated(taskData)
-                        }
-                    }
-                } catch {
-                    print("❌ 解析task_updated失败: \(error)")
+                    print("✅ 手动构建TaskData成功: \(taskData.title), category: \(taskData.category ?? "nil"), priority: \(taskData.priority ?? 0)")
+                    await handleTaskUpdated(taskData)
+                } else {
+                    print("❌ 无法获取data字典")
                 }
 
             case "task_deleted":
                 print("🔍 处理task_deleted消息")
-                // 直接从原始JSON文本解析，绕过AnyCodable
-                do {
-                    if let jsonData = text.data(using: .utf8) {
-                        let fullMessage = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
-
-                        if let dataDict = fullMessage?["data"] as? [String: Any] {
+                // fullMessage已经在上面解析了
+                if let dataDict = fullMessage?["data"] as? [String: Any] {
                             let taskData = TaskData(
                                 id: dataDict["id"] as? Int,
                                 userId: dataDict["user_id"] as? String ?? "",
@@ -316,12 +292,10 @@ class WebSocketManager: NSObject, ObservableObject {
                                 updatedAt: dataDict["updated_at"] as? String
                             )
 
-                            print("✅ 手动构建TaskData成功: \(taskData.title), category: \(taskData.category ?? "nil"), priority: \(taskData.priority ?? 0)")
-                            await handleTaskDeleted(taskData)
-                        }
-                    }
-                } catch {
-                    print("❌ 解析task_deleted失败: \(error)")
+                    print("✅ 手动构建TaskData成功: \(taskData.title), category: \(taskData.category ?? "nil"), priority: \(taskData.priority ?? 0)")
+                    await handleTaskDeleted(taskData)
+                } else {
+                    print("❌ 无法获取data字典")
                 }
 
             case "pong":
@@ -330,7 +304,10 @@ class WebSocketManager: NSObject, ObservableObject {
                 print("✅ WebSocket连接正常")
 
             default:
-                print("❓ 未知消息类型: \(wsMessage.type)")
+                print("❓ 未知消息类型: \(messageType)")
+            }
+            } else {
+                print("❌ 无法解析JSON消息")
             }
             
         } catch {
