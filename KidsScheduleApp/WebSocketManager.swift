@@ -98,6 +98,11 @@ class WebSocketManager: NSObject, ObservableObject {
     @Published var isConnected = false
     @Published var connectionStatus = "未连接"
     @Published var lastUpdateTime = Date() // 用于触发UI刷新
+
+    // Core Data 引用
+    private var persistenceController: PersistenceController {
+        return PersistenceController.shared
+    }
     
     private var webSocketTask: URLSessionWebSocketTask?
     private let baseURL = "ws://ec2-18-183-213-175.ap-northeast-1.compute.amazonaws.com:8082/ws"
@@ -180,7 +185,7 @@ class WebSocketManager: NSObject, ObservableObject {
     }
     
     private func processTextMessage(_ text: String) async {
-        guard let data = text.data(using: .utf8) else { return }
+        guard text.data(using: .utf8) != nil else { return }
         
         do {
             // 直接解析消息类型，不解析data字段
@@ -336,7 +341,7 @@ class WebSocketManager: NSObject, ObservableObject {
     // MARK: - 任务同步处理
 
     private func syncTasksFromWebSocket(_ taskDataArray: [TaskData]) async {
-        let context = PersistenceController.shared.container.viewContext
+        let context = persistenceController.container.viewContext
 
         print("🔄 通过WebSocket初始化同步 \(taskDataArray.count) 个任务")
 
@@ -447,7 +452,7 @@ class WebSocketManager: NSObject, ObservableObject {
     
     private func createLocalTask(from taskData: TaskData) async {
         await MainActor.run {
-            let context = PersistenceController.shared.container.viewContext
+            let context = persistenceController.container.viewContext
 
             // 检查是否已存在（避免重复创建）
             let request: NSFetchRequest<TaskItem> = TaskItem.fetchRequest()
@@ -480,9 +485,10 @@ class WebSocketManager: NSObject, ObservableObject {
                     newTask.lastModified = Date()
 
                     // 设置工作进度字段
-                    newTask.setSafeWorkProgress(taskData.workProgress ?? 0)
-                    newTask.setSafeTimeSpent(taskData.timeSpent ?? 0)
-                    newTask.setSafeProgressNotes(taskData.progressNotes)
+                    newTask.workProgress = taskData.workProgress ?? 0
+                    newTask.timeSpent = taskData.timeSpent ?? 0
+                    newTask.progressNotes = taskData.progressNotes
+                    newTask.lastProgressUpdate = Date()
 
                     // 解析日期
                     if let dueDateString = taskData.dueDate, !dueDateString.isEmpty {
@@ -508,7 +514,7 @@ class WebSocketManager: NSObject, ObservableObject {
     
     private func updateLocalTask(from taskData: TaskData) async {
         await MainActor.run {
-            let context = PersistenceController.shared.container.viewContext
+            let context = persistenceController.container.viewContext
 
             let request: NSFetchRequest<TaskItem> = TaskItem.fetchRequest()
 
@@ -555,18 +561,21 @@ class WebSocketManager: NSObject, ObservableObject {
                     }
 
                     // 更新工作进度字段
-                    if let workProgress = taskData.workProgress, task.safeWorkProgress != workProgress {
-                        task.setSafeWorkProgress(workProgress)
+                    if let workProgress = taskData.workProgress, task.workProgress != workProgress {
+                        task.workProgress = workProgress
+                        task.lastProgressUpdate = Date()
                         hasChanges = true
                     }
 
-                    if let timeSpent = taskData.timeSpent, task.safeTimeSpent != timeSpent {
-                        task.setSafeTimeSpent(timeSpent)
+                    if let timeSpent = taskData.timeSpent, task.timeSpent != timeSpent {
+                        task.timeSpent = timeSpent
+                        task.lastProgressUpdate = Date()
                         hasChanges = true
                     }
 
-                    if task.safeProgressNotes != taskData.progressNotes {
-                        task.setSafeProgressNotes(taskData.progressNotes)
+                    if task.progressNotes != taskData.progressNotes {
+                        task.progressNotes = taskData.progressNotes
+                        task.lastProgressUpdate = Date()
                         hasChanges = true
                     }
 
@@ -605,7 +614,7 @@ class WebSocketManager: NSObject, ObservableObject {
     
     private func deleteLocalTask(from taskData: TaskData) async {
         await MainActor.run {
-            let context = PersistenceController.shared.container.viewContext
+            let context = persistenceController.container.viewContext
 
             let request: NSFetchRequest<TaskItem> = TaskItem.fetchRequest()
 
@@ -657,7 +666,7 @@ class WebSocketManager: NSObject, ObservableObject {
 
     // 清除所有本地任务数据
     func clearAllLocalTasks() {
-        let context = PersistenceController.shared.container.viewContext
+        let context = persistenceController.container.viewContext
         let fetchRequest: NSFetchRequest<TaskItem> = TaskItem.fetchRequest()
 
         do {
@@ -731,9 +740,9 @@ class WebSocketManager: NSObject, ObservableObject {
             recordId: task.recordID ?? "",
             createdAt: ISO8601DateFormatter().string(from: Date()),
             updatedAt: ISO8601DateFormatter().string(from: Date()),
-            workProgress: task.safeWorkProgress,
-            timeSpent: task.safeTimeSpent,
-            progressNotes: task.safeProgressNotes
+            workProgress: task.workProgress,
+            timeSpent: task.timeSpent,
+            progressNotes: task.progressNotes
         )
 
         let message = WSMessage(type: "create_task", data: AnyCodable(taskData))
@@ -760,9 +769,9 @@ class WebSocketManager: NSObject, ObservableObject {
             recordId: task.recordID ?? "",
             createdAt: createdAtString,
             updatedAt: updatedAtString,
-            workProgress: task.safeWorkProgress,
-            timeSpent: task.safeTimeSpent,
-            progressNotes: task.safeProgressNotes
+            workProgress: task.workProgress,
+            timeSpent: task.timeSpent,
+            progressNotes: task.progressNotes
         )
 
         print("✏️ 准备更新任务，recordId: \(task.recordID ?? "无"), title: \(task.title ?? "")")
@@ -789,7 +798,10 @@ class WebSocketManager: NSObject, ObservableObject {
             deviceId: task.deviceId ?? "",
             recordId: task.recordID ?? "",
             createdAt: createdAtString,
-            updatedAt: updatedAtString
+            updatedAt: updatedAtString,
+            workProgress: task.workProgress,
+            timeSpent: task.timeSpent,
+            progressNotes: task.progressNotes
         )
 
         print("🗑️ 准备删除任务，recordId: \(task.recordID ?? "无"), title: \(task.title ?? "")")

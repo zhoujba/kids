@@ -27,7 +27,7 @@ struct ContentView: View {
                     }
                     .tag(1)
 
-                WorkCenterView()
+                Text("工作中心")
                     .tabItem {
                         Image(systemName: "briefcase.fill")
                         Text("工作")
@@ -236,20 +236,23 @@ struct TaskRowView: View {
                 }
 
                 // 工作任务进度条
-                if task.isWorkTask && task.workProgress > 0 {
+                if task.category == "工作" && task.workProgress > 0 {
                     HStack {
-                        Text("进度: \(task.progressPercentage)%")
+                        Text("进度: \(String(format: "%.0f", task.workProgress))%")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()
-                        if task.safeTimeSpent > 0 {
-                            Text("⏱️ \(task.formattedTimeSpent)")
+                        if task.timeSpent > 0 {
+                            let hours = Int(task.timeSpent)
+                            let minutes = Int((task.timeSpent - Double(hours)) * 60)
+                            let timeText = hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟"
+                            Text("⏱️ \(timeText)")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
 
-                    ProgressView(value: task.safeWorkProgress, total: 100)
+                    ProgressView(value: task.workProgress, total: 100)
                         .progressViewStyle(LinearProgressViewStyle(tint: task.isCompleted ? .green : .blue))
                         .scaleEffect(x: 1, y: 0.6)
                 }
