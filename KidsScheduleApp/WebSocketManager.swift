@@ -362,8 +362,7 @@ class WebSocketManager: NSObject, ObservableObject {
 
                     // 解析日期
                     if let dueDateString = taskData.dueDate, !dueDateString.isEmpty {
-                        let formatter = ISO8601DateFormatter()
-                        let dueDate = formatter.date(from: dueDateString)
+                        let dueDate = parseDate(from: dueDateString)
                         if existingTask.dueDate != dueDate {
                             existingTask.dueDate = dueDate
                             hasChanges = true
@@ -389,8 +388,7 @@ class WebSocketManager: NSObject, ObservableObject {
 
                     // 解析日期
                     if let dueDateString = taskData.dueDate, !dueDateString.isEmpty {
-                        let formatter = ISO8601DateFormatter()
-                        newTask.dueDate = formatter.date(from: dueDateString)
+                        newTask.dueDate = parseDate(from: dueDateString)
                     }
 
                     print("➕ 创建新任务: \(taskData.title)")
@@ -465,8 +463,7 @@ class WebSocketManager: NSObject, ObservableObject {
 
                     // 解析日期
                     if let dueDateString = taskData.dueDate, !dueDateString.isEmpty {
-                        let formatter = ISO8601DateFormatter()
-                        newTask.dueDate = formatter.date(from: dueDateString)
+                        newTask.dueDate = parseDate(from: dueDateString)
                     }
 
                     try context.save()
@@ -536,8 +533,7 @@ class WebSocketManager: NSObject, ObservableObject {
 
                     // 解析日期
                     if let dueDateString = taskData.dueDate, !dueDateString.isEmpty {
-                        let formatter = ISO8601DateFormatter()
-                        let dueDate = formatter.date(from: dueDateString)
+                        let dueDate = parseDate(from: dueDateString)
                         if task.dueDate != dueDate {
                             task.dueDate = dueDate
                             hasChanges = true
@@ -754,6 +750,50 @@ class WebSocketManager: NSObject, ObservableObject {
         print("🗑️ 准备删除任务，recordId: \(task.recordID ?? "无"), title: \(task.title ?? "")")
         let message = WSMessage(type: "delete_task", data: AnyCodable(taskData))
         sendMessage(message)
+    }
+
+    // MARK: - 日期解析辅助函数
+    private func parseDate(from dateString: String) -> Date? {
+        print("🗓️ 解析日期字符串: \(dateString)")
+
+        // 尝试标准ISO8601格式
+        let iso8601Formatter = ISO8601DateFormatter()
+        if let date = iso8601Formatter.date(from: dateString) {
+            print("✅ ISO8601格式解析成功: \(date)")
+            return date
+        }
+
+        // 尝试datetime-local格式 (YYYY-MM-DDTHH:MM)
+        if dateString.count == 16 && dateString.contains("T") {
+            let extendedDateString = dateString + ":00.000Z"
+            if let date = iso8601Formatter.date(from: extendedDateString) {
+                print("✅ datetime-local格式解析成功: \(date)")
+                return date
+            }
+        }
+
+        // 尝试其他常见格式
+        let formatters = [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm"
+        ]
+
+        for formatString in formatters {
+            let formatter = DateFormatter()
+            formatter.dateFormat = formatString
+            formatter.timeZone = TimeZone.current
+            if let date = formatter.date(from: dateString) {
+                print("✅ 自定义格式解析成功: \(formatString) -> \(date)")
+                return date
+            }
+        }
+
+        print("❌ 日期解析失败: \(dateString)")
+        return nil
     }
 
 

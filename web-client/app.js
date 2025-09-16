@@ -323,6 +323,19 @@ class TaskManager {
             return;
         }
 
+        // 确保日期格式正确
+        let formattedDueDate;
+        if (dueDate) {
+            // 如果是datetime-local格式 (YYYY-MM-DDTHH:MM)，转换为完整ISO格式
+            if (dueDate.length === 16 && dueDate.includes('T')) {
+                formattedDueDate = new Date(dueDate).toISOString();
+            } else {
+                formattedDueDate = dueDate;
+            }
+        } else {
+            formattedDueDate = new Date().toISOString();
+        }
+
         if (editingId) {
             // 编辑现有任务
             this.updateTask(editingId, {
@@ -330,7 +343,7 @@ class TaskManager {
                 description,
                 category,
                 priority,
-                due_date: dueDate || new Date().toISOString()
+                due_date: formattedDueDate
             });
         } else {
             // 创建新任务
@@ -340,7 +353,7 @@ class TaskManager {
                 description: description,
                 category: category,
                 priority: priority,
-                due_date: dueDate || new Date().toISOString(),
+                due_date: formattedDueDate,
                 is_completed: false,
                 device_id: this.generateDeviceId(),
                 record_id: this.generateRecordId(),
