@@ -733,6 +733,202 @@
             cursor: pointer;
         }
 
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+
+        .view-switcher {
+            display: flex;
+            background: var(--background-tertiary);
+            border-radius: 8px;
+            padding: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .view-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .view-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .view-btn:hover:not(.active) {
+            background: var(--background-secondary);
+            color: var(--text-primary);
+        }
+
+        /* 看板视图样式 */
+        .kanban-container {
+            flex: 1;
+            padding: 0 32px 32px;
+            overflow-x: auto;
+        }
+
+        .kanban-board {
+            display: flex;
+            gap: 20px;
+            min-height: 500px;
+            padding-bottom: 20px;
+        }
+
+        .kanban-column {
+            flex: 1;
+            min-width: 280px;
+            background: var(--background-tertiary);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kanban-column.overdue {
+            border-color: var(--error-color);
+            background: rgba(255, 59, 48, 0.05);
+        }
+
+        .column-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--background-secondary);
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+        }
+
+        .kanban-column.overdue .column-header {
+            background: rgba(255, 59, 48, 0.1);
+            border-bottom-color: rgba(255, 59, 48, 0.2);
+        }
+
+        .column-header h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .kanban-column.overdue .column-header h3 {
+            color: var(--error-color);
+        }
+
+        .task-count {
+            background: var(--primary-color);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .kanban-column.overdue .task-count {
+            background: var(--error-color);
+        }
+
+        .column-content {
+            flex: 1;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .kanban-task {
+            background: var(--background-secondary);
+            border-radius: var(--border-radius);
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .kanban-task:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-medium);
+            border-color: var(--primary-color);
+        }
+
+        .kanban-task.completed {
+            opacity: 0.6;
+            background: var(--background-tertiary);
+        }
+
+        .kanban-task-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .kanban-task-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.4;
+            flex: 1;
+        }
+
+        .kanban-task-title.completed {
+            text-decoration: line-through;
+            color: var(--text-tertiary);
+        }
+
+        .kanban-task-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .kanban-task-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+
+        .kanban-task-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+        }
+
+        .kanban-task-actions .btn {
+            padding: 6px 10px;
+            font-size: 0.8rem;
+        }
+
+        .empty-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            text-align: center;
+            opacity: 0.6;
+        }
+
         /* 响应式设计 */
         @media (max-width: 1200px) {
             .app-container {
@@ -885,8 +1081,24 @@
 
             <div class="content-area">
                 <div class="content-header">
-                    <h2 class="content-title">我的任务</h2>
-                    <p class="content-subtitle">管理您的日常任务，与iOS应用实时同步</p>
+                    <div class="header-top">
+                        <div>
+                            <h2 class="content-title">我的任务</h2>
+                            <p class="content-subtitle">管理您的日常任务，与iOS应用实时同步</p>
+                        </div>
+
+                        <!-- 视图切换 -->
+                        <div class="view-switcher">
+                            <button class="view-btn active" data-view="list">
+                                <i class="fas fa-list"></i>
+                                列表视图
+                            </button>
+                            <button class="view-btn" data-view="board">
+                                <i class="fas fa-columns"></i>
+                                看板视图
+                            </button>
+                        </div>
+                    </div>
 
                     <!-- 搜索栏 -->
                     <div class="search-bar">
@@ -918,13 +1130,58 @@
                     </div>
                 </div>
 
-                <!-- 任务列表 -->
-                <div class="task-list-container">
+                <!-- 任务列表视图 -->
+                <div class="task-list-container" id="listView">
                     <div id="taskContainer">
                         <div class="empty-state">
                             <i class="fas fa-clipboard-list"></i>
                             <h3>暂无任务</h3>
                             <p>点击右下角的 + 按钮添加第一个任务吧！</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 看板视图 -->
+                <div class="kanban-container" id="boardView" style="display: none;">
+                    <div class="kanban-board">
+                        <div class="kanban-column">
+                            <div class="column-header">
+                                <h3><i class="fas fa-clock"></i> 今天</h3>
+                                <span class="task-count" id="todayCount">0</span>
+                            </div>
+                            <div class="column-content" id="todayTasks"></div>
+                        </div>
+
+                        <div class="kanban-column">
+                            <div class="column-header">
+                                <h3><i class="fas fa-calendar-day"></i> 明天</h3>
+                                <span class="task-count" id="tomorrowCount">0</span>
+                            </div>
+                            <div class="column-content" id="tomorrowTasks"></div>
+                        </div>
+
+                        <div class="kanban-column">
+                            <div class="column-header">
+                                <h3><i class="fas fa-calendar-week"></i> 本周</h3>
+                                <span class="task-count" id="thisWeekCount">0</span>
+                            </div>
+                            <div class="column-content" id="thisWeekTasks"></div>
+                        </div>
+
+                        <div class="kanban-column">
+                            <div class="column-header">
+                                <h3><i class="fas fa-calendar"></i> 未来</h3>
+                                <span class="task-count" id="futureCount">0</span>
+                            </div>
+                            <div class="column-content" id="futureTasks"></div>
+                        </div>
+
+                        <div class="kanban-column overdue">
+                            <div class="column-header">
+                                <h3><i class="fas fa-exclamation-triangle"></i> 逾期</h3>
+                                <span class="task-count" id="overdueCount">0</span>
+                            </div>
+                            <div class="column-content" id="overdueTasks"></div>
                         </div>
                     </div>
                 </div>

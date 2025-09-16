@@ -10,6 +10,7 @@ class TaskManager {
         this.currentFilter = 'all';
         this.currentSort = 'created_desc';
         this.searchQuery = '';
+        this.currentView = 'list';
 
         this.init();
     }
@@ -21,6 +22,7 @@ class TaskManager {
         this.setupFilters();
         this.setupSearch();
         this.setupSort();
+        this.setupViewSwitcher();
     }
 
     setupEventListeners() {
@@ -82,6 +84,36 @@ class TaskManager {
             this.currentSort = e.target.value;
             this.applyFilters();
         });
+    }
+
+    setupViewSwitcher() {
+        const viewBtns = document.querySelectorAll('.view-btn');
+        viewBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // 移除所有active类
+                viewBtns.forEach(b => b.classList.remove('active'));
+                // 添加active类到当前按钮
+                btn.classList.add('active');
+                // 切换视图
+                this.switchView(btn.dataset.view);
+            });
+        });
+    }
+
+    switchView(view) {
+        this.currentView = view;
+        const listView = document.getElementById('listView');
+        const boardView = document.getElementById('boardView');
+
+        if (view === 'list') {
+            listView.style.display = 'block';
+            boardView.style.display = 'none';
+            this.renderTasks();
+        } else if (view === 'board') {
+            listView.style.display = 'none';
+            boardView.style.display = 'block';
+            this.renderKanbanBoard();
+        }
     }
 
     connectWebSocket() {
@@ -246,7 +278,12 @@ class TaskManager {
         });
 
         this.filteredTasks = filtered;
-        this.renderTasks();
+
+        if (this.currentView === 'list') {
+            this.renderTasks();
+        } else {
+            this.renderKanbanBoard();
+        }
     }
 
     sendMessage(message) {
@@ -272,6 +309,9 @@ class TaskManager {
     }
 
     createTask() {
+        const form = document.getElementById('taskForm');
+        const editingId = form.dataset.editingId;
+
         const title = document.getElementById('taskTitle').value.trim();
         const description = document.getElementById('taskDescription').value.trim();
         const category = document.getElementById('taskCategory').value;
@@ -283,34 +323,78 @@ class TaskManager {
             return;
         }
 
-        const task = {
-            user_id: 'default_user',
-            title: title,
-            description: description,
-            category: category,
-            priority: priority,
-            due_date: dueDate || new Date().toISOString(),
-            is_completed: false,
-            device_id: this.generateDeviceId(),
-            record_id: this.generateRecordId(),
-            created_at: new Date().toISOString(),
+        if (editingId) {
+            // 编辑现有任务
+            this.updateTask(editingId, {
+                title,
+                description,
+                category,
+                priority,
+                due_date: dueDate || new Date().toISOString()
+            });
+        } else {
+            // 创建新任务
+            const task = {
+                user_id: 'default_user',
+                title: title,
+                description: description,
+                category: category,
+                priority: priority,
+                due_date: dueDate || new Date().toISOString(),
+                is_completed: false,
+                device_id: this.generateDeviceId(),
+                record_id: this.generateRecordId(),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            this.sendMessage({
+                type: 'create_task',
+                data: task
+            });
+
+            this.showNotification('任务创建请求已发送', 'success');
+        }
+
+        // 清空表单并关闭模态框
+        this.resetForm();
+        this.hideAddTaskModal();
+    }
+
+    updateTask(taskId, updates) {
+        const task = this.tasks.find(t => t.id === taskId || t.record_id === taskId);
+        if (!task) return;
+
+        const updatedTask = {
+            ...task,
+            ...updates,
             updated_at: new Date().toISOString()
         };
 
         this.sendMessage({
-            type: 'create_task',
-            data: task
+            type: 'update_task',
+            data: updatedTask
         });
 
-        // 清空表单并关闭模态框
-        document.getElementById('taskForm').reset();
-        this.setDefaultDueDate();
-        this.hideAddTaskModal();
+        this.showNotification('任务更新请求已发送', 'success');
+    }
 
-        this.showNotification('任务创建请求已发送', 'success');
+    resetForm() {
+        const form = document.getElementById('taskForm');
+        form.reset();
+        delete form.dataset.editingId;
+        this.setDefaultDueDate();
+
+        // 重置按钮文本
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="fas fa-plus"></i> 添加任务';
+
+        // 重置模态框标题
+        document.querySelector('.modal-title').textContent = '添加新任务';
     }
 
     showAddTaskModal() {
+        this.resetForm(); // 确保表单是干净的
         document.getElementById('addTaskModal').classList.add('show');
         document.body.style.overflow = 'hidden';
         // 聚焦到标题输入框
@@ -322,9 +406,7 @@ class TaskManager {
     hideAddTaskModal() {
         document.getElementById('addTaskModal').classList.remove('show');
         document.body.style.overflow = '';
-        // 清空表单
-        document.getElementById('taskForm').reset();
-        this.setDefaultDueDate();
+        this.resetForm(); // 清空表单和重置状态
     }
 
     editTask(taskId, recordId) {
@@ -341,16 +423,23 @@ class TaskManager {
             document.getElementById('taskDueDate').value = date.toISOString().slice(0, 16);
         }
 
-        // 显示模态框
-        this.showAddTaskModal();
-
-        // 更改表单提交行为为更新而不是创建
+        // 设置编辑模式
         const form = document.getElementById('taskForm');
         form.dataset.editingId = task.id || task.record_id;
 
-        // 更改按钮文本
+        // 更改按钮文本和模态框标题
         const submitBtn = form.querySelector('button[type="submit"]');
         submitBtn.innerHTML = '<i class="fas fa-save"></i> 更新任务';
+        document.querySelector('.modal-title').textContent = '编辑任务';
+
+        // 显示模态框
+        document.getElementById('addTaskModal').classList.add('show');
+        document.body.style.overflow = 'hidden';
+
+        // 聚焦到标题输入框
+        setTimeout(() => {
+            document.getElementById('taskTitle').focus();
+        }, 100);
     }
 
     markAllCompleted() {
@@ -501,6 +590,119 @@ class TaskManager {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    renderKanbanBoard() {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const nextWeek = new Date(today);
+        nextWeek.setDate(nextWeek.getDate() + 7);
+
+        // 分类任务
+        const categories = {
+            overdue: [],
+            today: [],
+            tomorrow: [],
+            thisWeek: [],
+            future: []
+        };
+
+        this.filteredTasks.forEach(task => {
+            if (!task.due_date) {
+                categories.future.push(task);
+                return;
+            }
+
+            const dueDate = new Date(task.due_date);
+            const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+
+            if (dueDateOnly < today && !task.is_completed) {
+                categories.overdue.push(task);
+            } else if (dueDateOnly.getTime() === today.getTime()) {
+                categories.today.push(task);
+            } else if (dueDateOnly.getTime() === tomorrow.getTime()) {
+                categories.tomorrow.push(task);
+            } else if (dueDateOnly < nextWeek) {
+                categories.thisWeek.push(task);
+            } else {
+                categories.future.push(task);
+            }
+        });
+
+        // 渲染各个列
+        this.renderKanbanColumn('overdueTasks', categories.overdue, 'overdueCount');
+        this.renderKanbanColumn('todayTasks', categories.today, 'todayCount');
+        this.renderKanbanColumn('tomorrowTasks', categories.tomorrow, 'tomorrowCount');
+        this.renderKanbanColumn('thisWeekTasks', categories.thisWeek, 'thisWeekCount');
+        this.renderKanbanColumn('futureTasks', categories.future, 'futureCount');
+    }
+
+    renderKanbanColumn(containerId, tasks, countId) {
+        const container = document.getElementById(containerId);
+        const countElement = document.getElementById(countId);
+
+        countElement.textContent = tasks.length;
+
+        if (tasks.length === 0) {
+            container.innerHTML = `
+                <div class="empty-column">
+                    <i class="fas fa-check-circle" style="color: var(--text-tertiary); font-size: 2rem; margin-bottom: 8px;"></i>
+                    <p style="color: var(--text-tertiary); font-size: 0.9rem;">暂无任务</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = tasks.map(task => this.renderKanbanTask(task)).join('');
+    }
+
+    renderKanbanTask(task) {
+        const categoryEmoji = {
+            '学习': '📚',
+            '运动': '🏃',
+            '娱乐': '🎮',
+            '其他': '📝'
+        };
+
+        const priorityText = {
+            1: '高',
+            2: '中',
+            3: '低'
+        };
+
+        const dueDate = task.due_date ? new Date(task.due_date) : null;
+        const dueDateStr = dueDate ? dueDate.toLocaleString('zh-CN', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }) : '';
+
+        return `
+            <div class="kanban-task ${task.is_completed ? 'completed' : ''}" onclick="taskManager.toggleTask('${task.id}', '${task.record_id}')">
+                <div class="kanban-task-header">
+                    <div class="task-checkbox ${task.is_completed ? 'checked' : ''}" onclick="event.stopPropagation(); taskManager.toggleTask('${task.id}', '${task.record_id}')">
+                    </div>
+                    <div class="kanban-task-title ${task.is_completed ? 'completed' : ''}">${this.escapeHtml(task.title)}</div>
+                </div>
+                ${task.description ? `<div class="kanban-task-description">${this.escapeHtml(task.description)}</div>` : ''}
+                <div class="kanban-task-meta">
+                    <span class="category-tag">${categoryEmoji[task.category] || '📝'} ${task.category}</span>
+                    <span class="priority-badge priority-${task.priority}">${priorityText[task.priority]}</span>
+                    ${dueDateStr ? `<span class="due-date"><i class="fas fa-clock"></i> ${dueDateStr}</span>` : ''}
+                </div>
+                <div class="kanban-task-actions" onclick="event.stopPropagation();">
+                    <button class="btn btn-edit" onclick="taskManager.editTask('${task.id}', '${task.record_id}')" title="编辑">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-delete" onclick="taskManager.deleteTask('${task.id}', '${task.record_id}')" title="删除">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
     }
 
     updateStats() {
