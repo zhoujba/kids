@@ -12,7 +12,7 @@ struct AddTaskView: View {
 
     @State private var title = ""
     @State private var description = ""
-    @State private var category = "学习"
+    @State private var category = "工作"
     @State private var dueDate = Date().addingTimeInterval(3600) // 默认1小时后
     @State private var priority = 1
     @State private var enableNotification = true
@@ -23,7 +23,7 @@ struct AddTaskView: View {
         self.presetDate = presetDate
     }
     
-    let categories = ["学习", "运动", "娱乐", "生活", "其他"]
+    let categories = ["工作", "学习", "运动", "娱乐", "生活", "其他"]
     let priorities = [
         (1, "低"),
         (2, "中"),

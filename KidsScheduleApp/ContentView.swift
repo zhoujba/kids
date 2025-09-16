@@ -27,19 +27,26 @@ struct ContentView: View {
                     }
                     .tag(1)
 
+                WorkCenterView()
+                    .tabItem {
+                        Image(systemName: "briefcase.fill")
+                        Text("工作")
+                    }
+                    .tag(2)
+
                 PomodoroView()
                     .tabItem {
                         Image(systemName: "timer")
                         Text("番茄工作法")
                     }
-                    .tag(2)
+                    .tag(3)
 
                 SettingsView()
                     .tabItem {
                         Image(systemName: "gear")
                         Text("设置")
                     }
-                    .tag(3)
+                    .tag(4)
             }
             .accentColor(.blue)
         }
@@ -204,12 +211,19 @@ struct TaskRowView: View {
 
                 HStack {
                     if let category = task.category, !category.isEmpty {
-                        Text(category)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.2))
-                            .cornerRadius(8)
+                        HStack(spacing: 4) {
+                            if category == "工作" {
+                                Image(systemName: "briefcase.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
+                            Text(category)
+                                .font(.caption)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(category == "工作" ? Color.blue.opacity(0.2) : Color.gray.opacity(0.2))
+                        .cornerRadius(8)
                     }
 
                     Spacer()
@@ -219,6 +233,25 @@ struct TaskRowView: View {
                             .font(.caption)
                             .foregroundColor(dueDate < Date() ? .red : .secondary)
                     }
+                }
+
+                // 工作任务进度条
+                if task.isWorkTask && task.workProgress > 0 {
+                    HStack {
+                        Text("进度: \(task.progressPercentage)%")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        if task.timeSpent > 0 {
+                            Text("⏱️ \(task.formattedTimeSpent)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    ProgressView(value: task.workProgress, total: 100)
+                        .progressViewStyle(LinearProgressViewStyle(tint: task.isCompleted ? .green : .blue))
+                        .scaleEffect(x: 1, y: 0.6)
                 }
             }
 

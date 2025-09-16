@@ -68,6 +68,9 @@ struct TaskData: Codable {
     let recordId: String?
     let createdAt: String?  // 允许为空
     let updatedAt: String?  // 允许为空
+    let workProgress: Double?  // 工作进度 (0-100)
+    let timeSpent: Double?     // 时间投入 (小时)
+    let progressNotes: String? // 进度说明
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -82,6 +85,9 @@ struct TaskData: Codable {
         case recordId = "record_id"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case workProgress = "work_progress"
+        case timeSpent = "time_spent"
+        case progressNotes = "progress_notes"
     }
 }
 
@@ -461,6 +467,11 @@ class WebSocketManager: NSObject, ObservableObject {
                     newTask.createdDate = Date()
                     newTask.lastModified = Date()
 
+                    // 设置工作进度字段
+                    newTask.workProgress = taskData.workProgress ?? 0
+                    newTask.timeSpent = taskData.timeSpent ?? 0
+                    newTask.progressNotes = taskData.progressNotes
+
                     // 解析日期
                     if let dueDateString = taskData.dueDate, !dueDateString.isEmpty {
                         newTask.dueDate = parseDate(from: dueDateString)
@@ -528,6 +539,22 @@ class WebSocketManager: NSObject, ObservableObject {
 
                     if task.priority != Int16(taskData.priority ?? 1) {
                         task.priority = Int16(taskData.priority ?? 1)
+                        hasChanges = true
+                    }
+
+                    // 更新工作进度字段
+                    if let workProgress = taskData.workProgress, task.workProgress != workProgress {
+                        task.workProgress = workProgress
+                        hasChanges = true
+                    }
+
+                    if let timeSpent = taskData.timeSpent, task.timeSpent != timeSpent {
+                        task.timeSpent = timeSpent
+                        hasChanges = true
+                    }
+
+                    if task.progressNotes != taskData.progressNotes {
+                        task.progressNotes = taskData.progressNotes
                         hasChanges = true
                     }
 
@@ -691,7 +718,10 @@ class WebSocketManager: NSObject, ObservableObject {
             deviceId: task.deviceId ?? "",
             recordId: task.recordID ?? "",
             createdAt: ISO8601DateFormatter().string(from: Date()),
-            updatedAt: ISO8601DateFormatter().string(from: Date())
+            updatedAt: ISO8601DateFormatter().string(from: Date()),
+            workProgress: task.workProgress,
+            timeSpent: task.timeSpent,
+            progressNotes: task.progressNotes
         )
 
         let message = WSMessage(type: "create_task", data: AnyCodable(taskData))
@@ -717,7 +747,10 @@ class WebSocketManager: NSObject, ObservableObject {
             deviceId: task.deviceId ?? "",
             recordId: task.recordID ?? "",
             createdAt: createdAtString,
-            updatedAt: updatedAtString
+            updatedAt: updatedAtString,
+            workProgress: task.workProgress,
+            timeSpent: task.timeSpent,
+            progressNotes: task.progressNotes
         )
 
         print("✏️ 准备更新任务，recordId: \(task.recordID ?? "无"), title: \(task.title ?? "")")
