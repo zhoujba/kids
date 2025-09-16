@@ -805,8 +805,8 @@ window.addEventListener('error', (event) => {
 
 // 页面加载完成后的初始化
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 儿童任务管理Web版已启动');
-    console.log('📱 与iOS应用实时同步');
+    console.log('🚀 TaskFlow Web版已启动');
+    console.log('📱 专业的个人效率提升工具');
     console.log('🌐 WebSocket服务器: ec2-18-183-213-175.ap-northeast-1.compute.amazonaws.com:8082');
 
     // 添加一些快捷键

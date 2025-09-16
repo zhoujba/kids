@@ -56,10 +56,10 @@ class PersistenceController {
         
         // 创建示例数据
         let sampleTask = TaskItem(context: viewContext)
-        sampleTask.title = "数学课"
-        sampleTask.taskDescription = "今天下午3点有数学课"
+        sampleTask.title = "完成项目报告"
+        sampleTask.taskDescription = "整理本周工作进展，准备下周计划"
         sampleTask.dueDate = Date().addingTimeInterval(3600) // 1小时后
-        sampleTask.category = "学习"
+        sampleTask.category = "工作"
         sampleTask.isCompleted = false
         sampleTask.createdDate = Date()
         sampleTask.deviceId = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString

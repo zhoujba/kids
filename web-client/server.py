@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-儿童任务管理Web版 - 本地服务器
-用于在Mac上快速启动Web客户端
+TaskFlow Web版 - 本地服务器
+专业的个人效率提升工具
 """
 
 import http.server
@@ -31,7 +31,7 @@ def main():
     script_dir = Path(__file__).parent
     os.chdir(script_dir)
     
-    print("🚀 启动儿童任务管理Web版...")
+    print("🚀 启动TaskFlow Web版...")
     print(f"📁 工作目录: {script_dir}")
     print(f"🌐 端口: {PORT}")
     
@@ -92,15 +92,16 @@ if __name__ == "__main__":
     # 检查命令行参数
     if len(sys.argv) > 1:
         if sys.argv[1] == '--help' or sys.argv[1] == '-h':
-            print("儿童任务管理Web版 - 本地服务器")
+            print("TaskFlow Web版 - 本地服务器")
             print("\n使用方法:")
             print("  python3 server.py              # 默认端口8000")
             print("  python3 server.py --port 8001  # 指定端口")
             print("  python3 server.py --help       # 显示帮助")
             print("\n功能特性:")
-            print("  ✅ 与iOS应用实时同步")
-            print("  ✅ 任务创建、编辑、删除")
-            print("  ✅ 分类和优先级管理")
+            print("  ✅ 专业的个人效率提升工具")
+            print("  ✅ 实时同步，多设备协作")
+            print("  ✅ 智能分类和优先级管理")
+            print("  ✅ 时间管理和看板视图")
             print("  ✅ 响应式设计，支持各种屏幕")
             print("  ✅ 自动重连WebSocket")
             sys.exit(0)
