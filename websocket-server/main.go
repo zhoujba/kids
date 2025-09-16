@@ -161,7 +161,7 @@ func main() {
 	fmt.Println("🚀 WebSocket服务器启动在端口 8082")
 	fmt.Println("📡 WebSocket端点: ws://localhost:8082/ws")
 	fmt.Println("🔗 REST API端点: http://localhost:8082/api/tasks")
-	fmt.Println("🔖 版本: v1.0.2 - 自动部署验证成功！")
+	fmt.Println("🔖 版本: v1.0.3 - GitHub Webhook测试")
 	log.Fatal(http.ListenAndServe(":8082", handler))
 }
 
