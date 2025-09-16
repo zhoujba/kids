@@ -12,8 +12,8 @@ struct WorkProgressUpdateView: View {
     
     init(task: TaskItem) {
         self.task = task
-        self._progress = State(initialValue: task.safeWorkProgress)
-        self._progressNotes = State(initialValue: task.safeProgressNotes ?? "")
+        self._progress = State(initialValue: task.workProgress)
+        self._progressNotes = State(initialValue: task.progressNotes ?? "")
     }
     
     var body: some View {
@@ -47,15 +47,20 @@ struct WorkProgressUpdateView: View {
                     HStack {
                         Text("累计时间")
                         Spacer()
-                        Text(task.formattedTimeSpent)
+                        let hours = Int(task.timeSpent)
+                        let minutes = Int((task.timeSpent - Double(hours)) * 60)
+                        let timeText = hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟"
+                        Text(timeText)
                             .foregroundColor(.secondary)
                     }
                     
-                    if task.hasProgressUpdate {
+                    if let lastUpdate = task.lastProgressUpdate {
                         HStack {
                             Text("最后更新")
                             Spacer()
-                            Text(task.formattedLastUpdate)
+                            let formatter = DateFormatter()
+                            formatter.dateFormat = "MM-dd HH:mm"
+                            Text(formatter.string(from: lastUpdate))
                                 .foregroundColor(.secondary)
                         }
                     }
@@ -162,9 +167,17 @@ struct WorkProgressUpdateView: View {
                                     .font(.subheadline)
                                     .fontWeight(.medium)
                                 Spacer()
-                                Text(task.formattedLastUpdate)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                if let lastUpdate = task.lastProgressUpdate {
+                                    let formatter = DateFormatter()
+                                    formatter.dateFormat = "MM-dd HH:mm"
+                                    Text(formatter.string(from: lastUpdate))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("未更新")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                             
                             if let notes = task.progressNotes, !notes.isEmpty {

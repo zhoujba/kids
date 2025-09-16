@@ -27,7 +27,7 @@ struct ContentView: View {
                     }
                     .tag(1)
 
-                Text("工作中心")
+                WorkCenterView()
                     .tabItem {
                         Image(systemName: "briefcase.fill")
                         Text("工作")

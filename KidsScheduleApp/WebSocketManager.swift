@@ -726,6 +726,11 @@ class WebSocketManager: NSObject, ObservableObject {
 
     // MARK: - WebSocket消息发送
 
+    // 公共方法：发送任务更新
+    func sendTaskUpdate(_ task: TaskItem) async {
+        await sendUpdateTaskMessage(task)
+    }
+
     private func sendCreateTaskMessage(_ task: TaskItem) async {
         let taskData = TaskData(
             id: 0, // 新任务ID为0，服务器会分配

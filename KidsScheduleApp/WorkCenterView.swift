@@ -254,12 +254,15 @@ struct WorkTaskCard: View {
                 // 进度条
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text("进度: \(task.progressPercentage)%")
+                        Text("进度: \(Int(task.workProgress))%")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()
                         if task.timeSpent > 0 {
-                            Text("⏱️ \(task.formattedTimeSpent)")
+                            let hours = Int(task.timeSpent)
+                            let minutes = Int((task.timeSpent - Double(hours)) * 60)
+                            let timeText = hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟"
+                            Text("⏱️ \(timeText)")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -270,19 +273,24 @@ struct WorkTaskCard: View {
                         .scaleEffect(x: 1, y: 0.8)
                 }
                 
-                if task.hasProgressUpdate {
-                    Text("最后更新: \(task.formattedLastUpdate)")
+                if let lastUpdate = task.lastProgressUpdate {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "MM-dd HH:mm"
+                    Text("最后更新: \(formatter.string(from: lastUpdate))")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             } else {
                 // 紧凑模式只显示进度百分比
                 HStack {
-                    Text("\(task.progressPercentage)%")
+                    Text("\(Int(task.workProgress))%")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     if task.timeSpent > 0 {
-                        Text("• \(task.formattedTimeSpent)")
+                        let hours = Int(task.timeSpent)
+                        let minutes = Int((task.timeSpent - Double(hours)) * 60)
+                        let timeText = hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟"
+                        Text("• \(timeText)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

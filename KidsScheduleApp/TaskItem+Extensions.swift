@@ -44,6 +44,10 @@ extension TaskItem {
     var formattedWorkProgress: String {
         return String(format: "%.0f%%", safeWorkProgress)
     }
+
+    var progressPercentage: Int {
+        return Int(safeWorkProgress)
+    }
     
     var formattedTimeSpent: String {
         let hours = Int(safeTimeSpent)

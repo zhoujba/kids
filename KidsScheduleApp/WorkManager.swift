@@ -49,7 +49,9 @@ class WorkManager: ObservableObject {
     @Published var lastDailyReport: WorkDailyReport?
     @Published var weeklyOverview: WorkWeeklyOverview?
     
-    private let context = PersistenceController.shared.container.viewContext
+    private var context: NSManagedObjectContext {
+        return PersistenceController.shared.container.viewContext
+    }
     private var dailyReportTimer: Timer?
     
     private init() {
@@ -137,7 +139,7 @@ class WorkManager: ObservableObject {
         task.setSafeWorkProgress(progress)
         task.setSafeTimeSpent(task.safeTimeSpent + timeSpent)
         task.setSafeProgressNotes(notes)
-        task.setSafeLastProgressUpdate(Date())
+        task.lastProgressUpdate = Date()
         task.lastModified = Date()
         
         do {
@@ -283,67 +285,4 @@ class WorkManager: ObservableObject {
     }
 }
 
-// MARK: - TaskItem扩展
-extension TaskItem {
-    var isWorkTask: Bool {
-        return category == "工作"
-    }
 
-    // 安全访问工作进度字段
-    var safeWorkProgress: Double {
-        return self.value(forKey: "workProgress") as? Double ?? 0.0
-    }
-
-    var safeTimeSpent: Double {
-        return self.value(forKey: "timeSpent") as? Double ?? 0.0
-    }
-
-    var safeProgressNotes: String? {
-        return self.value(forKey: "progressNotes") as? String
-    }
-
-    var safeLastProgressUpdate: Date? {
-        return self.value(forKey: "lastProgressUpdate") as? Date
-    }
-
-    var progressPercentage: Int {
-        return Int(safeWorkProgress)
-    }
-
-    var formattedTimeSpent: String {
-        let timeSpent = safeTimeSpent
-        if timeSpent < 1 {
-            return String(format: "%.1f小时", timeSpent)
-        } else {
-            return String(format: "%.1f小时", timeSpent)
-        }
-    }
-
-    var hasProgressUpdate: Bool {
-        return safeLastProgressUpdate != nil
-    }
-
-    var formattedLastUpdate: String {
-        guard let lastUpdate = safeLastProgressUpdate else { return "未更新" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM-dd HH:mm"
-        return formatter.string(from: lastUpdate)
-    }
-
-    // 安全设置工作进度字段
-    func setSafeWorkProgress(_ value: Double) {
-        self.setValue(value, forKey: "workProgress")
-    }
-
-    func setSafeTimeSpent(_ value: Double) {
-        self.setValue(value, forKey: "timeSpent")
-    }
-
-    func setSafeProgressNotes(_ value: String?) {
-        self.setValue(value, forKey: "progressNotes")
-    }
-
-    func setSafeLastProgressUpdate(_ value: Date?) {
-        self.setValue(value, forKey: "lastProgressUpdate")
-    }
-}
