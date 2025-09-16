@@ -12,10 +12,12 @@
 - ✅ **番茄工作法**：内置专注时间管理工具
 - ✅ **语音输入**：支持语音创建任务
 - ✅ **日历视图**：直观的时间管理界面
+- ✅ **Web版客户端**：跨平台浏览器访问
 - ✅ **自动部署**：GitHub推送自动部署到服务器
 
 ### 🏗️ 技术架构
-- **前端**：SwiftUI + Core Data (iOS 17+)
+- **iOS前端**：SwiftUI + Core Data (iOS 17+)
+- **Web前端**：HTML5 + CSS3 + JavaScript
 - **后端**：Go + SQLite + WebSocket
 - **部署**：AWS EC2 + GitHub Webhook自动部署
 - **同步**：WebSocket实时双向通信
@@ -37,9 +39,10 @@
 - **[SYNC_TESTING_GUIDE.md](SYNC_TESTING_GUIDE.md)** - 同步功能测试指南
 - **[AWS部署总结.md](AWS部署总结.md)** - AWS部署配置说明
 
-### 📱 iOS开发
+### 📱 客户端开发
 - **[INSTALL_TO_IPHONE.md](INSTALL_TO_IPHONE.md)** - iOS设备安装指南
 - **[CLOUDKIT_SETUP.md](CLOUDKIT_SETUP.md)** - CloudKit配置说明
+- **[web-client/README.md](web-client/README.md)** - Web版客户端使用指南
 
 ## 🚀 快速开始
 
@@ -51,7 +54,19 @@ open KidsScheduleApp.xcodeproj
 # 选择设备/模拟器，按⌘+R运行
 ```
 
-### 2. 检查服务器状态
+### 2. 启动Web版客户端
+```bash
+# 进入Web客户端目录
+cd web-client
+
+# 一键启动（推荐）
+./start.sh
+
+# 或手动启动Python服务器
+python3 server.py
+```
+
+### 3. 检查服务器状态
 ```bash
 # 健康检查
 curl http://ec2-18-183-213-175.ap-northeast-1.compute.amazonaws.com:8082/health
@@ -59,7 +74,7 @@ curl http://ec2-18-183-213-175.ap-northeast-1.compute.amazonaws.com:8082/health
 # 预期返回：{"status":"ok"}
 ```
 
-### 3. 部署更新
+### 4. 部署更新
 ```bash
 # 手动部署
 ./deploy.sh
@@ -74,6 +89,7 @@ git push origin main
 
 ### ✅ 已完成功能
 - [x] iOS应用完整功能
+- [x] Web版客户端
 - [x] WebSocket实时同步
 - [x] 任务CRUD操作
 - [x] 多设备同步
@@ -82,6 +98,7 @@ git push origin main
 
 ### 🔄 当前版本
 - **iOS应用**：完整功能版本
+- **Web客户端**：v1.0.0 - 跨平台任务管理
 - **WebSocket服务器**：v1.0.4 - 改进的自动部署系统
 - **部署系统**：GitHub Webhook自动部署
 
