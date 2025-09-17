@@ -829,17 +829,17 @@ function generateDailyReport() {
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
     const todayTasks = taskManager.tasks.filter(task => {
-        const taskDate = new Date(task.dueDate);
+        const taskDate = new Date(task.due_date);
         return taskDate >= todayStart && taskDate < todayEnd;
     });
 
-    const completedTasks = todayTasks.filter(task => task.isCompleted);
-    const ongoingTasks = todayTasks.filter(task => !task.isCompleted);
+    const completedTasks = todayTasks.filter(task => task.is_completed);
+    const ongoingTasks = todayTasks.filter(task => !task.is_completed);
 
     // 获取未来任务
     const futureTasks = taskManager.tasks.filter(task => {
-        const taskDate = new Date(task.dueDate);
-        return taskDate >= todayEnd && !task.isCompleted;
+        const taskDate = new Date(task.due_date);
+        return taskDate >= todayEnd && !task.is_completed;
     }).slice(0, 8);
 
     const reportContent = generateDailyReportHTML(todayTasks, completedTasks, ongoingTasks, futureTasks, today);
@@ -852,12 +852,12 @@ function generateWeeklyReport() {
     const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     const weekTasks = taskManager.tasks.filter(task => {
-        const taskDate = new Date(task.dueDate);
+        const taskDate = new Date(task.due_date);
         return taskDate >= weekStart && taskDate < weekEnd;
     });
 
-    const completedTasks = weekTasks.filter(task => task.isCompleted);
-    const ongoingTasks = weekTasks.filter(task => !task.isCompleted);
+    const completedTasks = weekTasks.filter(task => task.is_completed);
+    const ongoingTasks = weekTasks.filter(task => !task.is_completed);
 
     // 按类型分组
     const tasksByCategory = {};
@@ -953,7 +953,7 @@ function generateDailyReportHTML(todayTasks, completedTasks, ongoingTasks, futur
     } else {
         todayTasks.forEach((task, index) => {
             const icon = categoryIcons[task.category] || '📋';
-            const status = task.isCompleted ? '✅ 已完成' : '🔄 进行中';
+            const status = task.is_completed ? '✅ 已完成' : '🔄 进行中';
             html += `
                 <li>
                     <span class="report-task-title">${index + 1}. ${task.title}</span>
@@ -986,7 +986,7 @@ function generateDailyReportHTML(todayTasks, completedTasks, ongoingTasks, futur
                     </div>
                     <p>详情：${task.description || '暂无详细说明'}</p>
                     <p>分类：${icon} ${task.category}</p>
-                    <p>状态：${task.isCompleted ? '✅ 已完成' : '🔄 进行中'}</p>
+                    <p>状态：${task.is_completed ? '✅ 已完成' : '🔄 进行中'}</p>
                 </div>
             `;
         });
@@ -1034,7 +1034,7 @@ function generateDailyReportHTML(todayTasks, completedTasks, ongoingTasks, futur
         `;
         futureTasks.forEach((task, index) => {
             const icon = categoryIcons[task.category] || '📋';
-            const taskDate = formatTaskDate(new Date(task.dueDate));
+            const taskDate = formatTaskDate(new Date(task.due_date));
             html += `
                 <li>
                     <span class="report-task-title">• ${task.title}</span>
@@ -1088,8 +1088,8 @@ function generateWeeklyReportHTML(weekTasks, tasksByCategory, weekStart, weekEnd
         '其他': '📝'
     };
 
-    const completedTasks = weekTasks.filter(task => task.isCompleted);
-    const ongoingTasks = weekTasks.filter(task => !task.isCompleted);
+    const completedTasks = weekTasks.filter(task => task.is_completed);
+    const ongoingTasks = weekTasks.filter(task => !task.is_completed);
 
     let html = `
         <div class="report-content">
@@ -1106,7 +1106,7 @@ function generateWeeklyReportHTML(weekTasks, tasksByCategory, weekStart, weekEnd
     } else {
         weekTasks.forEach((task, index) => {
             const icon = categoryIcons[task.category] || '📋';
-            const status = task.isCompleted ? '✅ 已完成' : '🔄 进行中';
+            const status = task.is_completed ? '✅ 已完成' : '🔄 进行中';
             html += `
                 <li>
                     <span class="report-task-title">${index + 1}. ${task.title}</span>
@@ -1132,8 +1132,8 @@ function generateWeeklyReportHTML(weekTasks, tasksByCategory, weekStart, weekEnd
     } else {
         Object.keys(tasksByCategory).sort().forEach(category => {
             const tasks = tasksByCategory[category];
-            const completed = tasks.filter(task => task.isCompleted);
-            const ongoing = tasks.filter(task => !task.isCompleted);
+            const completed = tasks.filter(task => task.is_completed);
+            const ongoing = tasks.filter(task => !task.is_completed);
             const icon = categoryIcons[category] || '📋';
 
             html += `
@@ -1225,7 +1225,7 @@ function generateWeeklyReportHTML(weekTasks, tasksByCategory, weekStart, weekEnd
         `;
         Object.keys(tasksByCategory).sort().forEach(category => {
             const tasks = tasksByCategory[category];
-            const completed = tasks.filter(task => task.isCompleted).length;
+            const completed = tasks.filter(task => task.is_completed).length;
             const icon = categoryIcons[category] || '📋';
             html += `
                 <li>
