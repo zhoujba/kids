@@ -55,7 +55,8 @@ class TaskManager {
         });
 
         // 点击报告模态框外部关闭
-        document.addEventListener('DOMContentLoaded', () => {
+        // 延迟设置，确保DOM已加载
+        setTimeout(() => {
             const reportModal = document.getElementById('reportModal');
             if (reportModal) {
                 reportModal.addEventListener('click', (e) => {
@@ -64,7 +65,7 @@ class TaskManager {
                     }
                 });
             }
-        });
+        }, 100);
     }
 
     setupFilters() {
@@ -821,16 +822,29 @@ function clearCompleted() {
     taskManager.clearCompleted();
 }
 
+// 测试函数
+function testReportFunction() {
+    console.log('🧪 测试函数被调用');
+    alert('测试函数工作正常！');
+}
+
 // 报告功能
 function generateDailyReport() {
+    console.log('🔍 生成日报被调用');
+    console.log('📊 当前任务数量:', taskManager.tasks.length);
+
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    console.log('📅 今日时间范围:', todayStart, '到', todayEnd);
 
     const todayTasks = taskManager.tasks.filter(task => {
         const taskDate = new Date(task.dueDate);
         return taskDate >= todayStart && taskDate < todayEnd;
     });
+
+    console.log('📋 今日任务数量:', todayTasks.length);
 
     const completedTasks = todayTasks.filter(task => task.isCompleted);
     const ongoingTasks = todayTasks.filter(task => !task.isCompleted);
@@ -842,13 +856,19 @@ function generateDailyReport() {
     }).slice(0, 8);
 
     const reportContent = generateDailyReportHTML(todayTasks, completedTasks, ongoingTasks, futureTasks, today);
+    console.log('📄 报告内容生成完成');
     showReportModal('📊 ' + formatDate(today) + ' 活动日报', reportContent);
 }
 
 function generateWeeklyReport() {
+    console.log('🔍 生成周报被调用');
+    console.log('📊 当前任务数量:', taskManager.tasks.length);
+
     const today = new Date();
     const weekStart = getWeekStart(today);
     const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    console.log('📅 本周时间范围:', weekStart, '到', weekEnd);
 
     const weekTasks = taskManager.tasks.filter(task => {
         const taskDate = new Date(task.dueDate);
@@ -873,12 +893,31 @@ function generateWeeklyReport() {
 }
 
 function showReportModal(title, content) {
-    document.getElementById('reportTitle').textContent = title;
-    document.getElementById('reportContent').innerHTML = content;
-    document.getElementById('reportModal').style.display = 'flex';
+    console.log('📱 显示报告模态框:', title);
+
+    const titleElement = document.getElementById('reportTitle');
+    const contentElement = document.getElementById('reportContent');
+    const modalElement = document.getElementById('reportModal');
+
+    if (!titleElement || !contentElement || !modalElement) {
+        console.error('❌ 找不到报告模态框元素');
+        alert('报告模态框元素未找到，请检查页面是否正确加载');
+        return;
+    }
+
+    titleElement.textContent = title;
+    contentElement.innerHTML = content;
+    modalElement.style.display = 'flex';
+
+    console.log('✅ 报告模态框显示成功');
 
     // 存储当前报告内容用于复制
-    window.currentReportText = generateReportText(content);
+    try {
+        window.currentReportText = generateReportText(content);
+        console.log('📋 报告文本生成成功');
+    } catch (error) {
+        console.error('❌ 生成报告文本失败:', error);
+    }
 }
 
 function hideReportModal() {
