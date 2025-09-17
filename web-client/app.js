@@ -118,15 +118,22 @@ class TaskManager {
         this.currentView = view;
         const listView = document.getElementById('listView');
         const boardView = document.getElementById('boardView');
+        const ganttView = document.getElementById('ganttView');
+
+        // 隐藏所有视图
+        listView.style.display = 'none';
+        boardView.style.display = 'none';
+        ganttView.style.display = 'none';
 
         if (view === 'list') {
             listView.style.display = 'block';
-            boardView.style.display = 'none';
             this.renderTasks();
         } else if (view === 'board') {
-            listView.style.display = 'none';
             boardView.style.display = 'block';
             this.renderKanbanBoard();
+        } else if (view === 'gantt') {
+            ganttView.style.display = 'block';
+            this.renderGanttChart();
         }
     }
 
@@ -330,6 +337,7 @@ class TaskManager {
         const description = document.getElementById('taskDescription').value.trim();
         const category = document.getElementById('taskCategory').value;
         const priority = parseInt(document.getElementById('taskPriority').value);
+        const startDate = document.getElementById('taskStartDate').value;
         const dueDate = document.getElementById('taskDueDate').value;
 
         if (!title) {
@@ -338,7 +346,17 @@ class TaskManager {
         }
 
         // 确保日期格式正确
-        let formattedDueDate;
+        let formattedStartDate = null;
+        let formattedDueDate = null;
+
+        if (startDate) {
+            if (startDate.length === 16 && startDate.includes('T')) {
+                formattedStartDate = new Date(startDate).toISOString();
+            } else {
+                formattedStartDate = startDate;
+            }
+        }
+
         if (dueDate) {
             // 如果是datetime-local格式 (YYYY-MM-DDTHH:MM)，转换为完整ISO格式
             if (dueDate.length === 16 && dueDate.includes('T')) {
@@ -350,6 +368,12 @@ class TaskManager {
             formattedDueDate = new Date().toISOString();
         }
 
+        // 验证时间逻辑
+        if (formattedStartDate && formattedDueDate && new Date(formattedStartDate) > new Date(formattedDueDate)) {
+            this.showNotification('开始时间不能晚于截止时间', 'error');
+            return;
+        }
+
         if (editingId) {
             // 编辑现有任务
             this.updateTask(editingId, {
@@ -357,6 +381,7 @@ class TaskManager {
                 description,
                 category,
                 priority,
+                start_date: formattedStartDate,
                 due_date: formattedDueDate
             });
         } else {
@@ -367,12 +392,14 @@ class TaskManager {
                 description: description,
                 category: category,
                 priority: priority,
+                start_date: formattedStartDate,
                 due_date: formattedDueDate,
                 is_completed: false,
                 device_id: this.generateDeviceId(),
                 record_id: this.generateRecordId(),
                 created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                daily_progress: {} // 用于存储每日进度
             };
 
             this.sendMessage({
@@ -445,9 +472,15 @@ class TaskManager {
         document.getElementById('taskDescription').value = task.description || '';
         document.getElementById('taskCategory').value = task.category;
         document.getElementById('taskPriority').value = task.priority;
+
+        if (task.start_date) {
+            const startDate = new Date(task.start_date);
+            document.getElementById('taskStartDate').value = startDate.toISOString().slice(0, 16);
+        }
+
         if (task.due_date) {
-            const date = new Date(task.due_date);
-            document.getElementById('taskDueDate').value = date.toISOString().slice(0, 16);
+            const dueDate = new Date(task.due_date);
+            document.getElementById('taskDueDate').value = dueDate.toISOString().slice(0, 16);
         }
 
         // 设置编辑模式
@@ -787,6 +820,151 @@ class TaskManager {
 
     generateRecordId() {
         return 'record-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // 甘特图相关方法
+    renderGanttChart(timeRange = 'week') {
+        const ganttTasks = document.getElementById('ganttTasks');
+        const ganttTimeline = document.getElementById('ganttTimeline');
+
+        if (!ganttTasks || !ganttTimeline) return;
+
+        // 获取有时间范围的任务
+        const tasksWithDates = (this.filteredTasks || this.tasks).filter(task =>
+            task.start_date || task.due_date
+        );
+
+        if (tasksWithDates.length === 0) {
+            ganttTasks.innerHTML = `
+                <div class="gantt-empty-state">
+                    <i class="fas fa-chart-gantt"></i>
+                    <h3>暂无时间线任务</h3>
+                    <p>请为任务设置开始时间或截止时间以在甘特图中显示</p>
+                </div>
+            `;
+            ganttTimeline.innerHTML = '';
+            return;
+        }
+
+        // 生成时间线
+        const { dates, startDate, endDate } = this.generateTimelineDates(timeRange);
+        this.renderTimeline(ganttTimeline, dates);
+
+        // 生成任务条
+        this.renderGanttTasks(ganttTasks, tasksWithDates, startDate, endDate, dates);
+    }
+
+    generateTimelineDates(timeRange) {
+        const today = new Date();
+        let startDate, endDate;
+
+        if (timeRange === 'today') {
+            startDate = new Date(today);
+            endDate = new Date(today);
+        } else if (timeRange === 'week') {
+            startDate = this.getWeekStart(today);
+            endDate = new Date(startDate.getTime() + 6 * 24 * 60 * 60 * 1000);
+        } else if (timeRange === 'month') {
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        }
+
+        const dates = [];
+        const currentDate = new Date(startDate);
+
+        while (currentDate <= endDate) {
+            dates.push(new Date(currentDate));
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        return { dates, startDate, endDate };
+    }
+
+    renderTimeline(container, dates) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        container.innerHTML = dates.map(date => {
+            const isToday = date.getTime() === today.getTime();
+            const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+
+            return `
+                <div class="gantt-timeline-cell ${isToday ? 'today' : ''}">
+                    <div class="date">${date.getMonth() + 1}/${date.getDate()}</div>
+                    <div class="day">周${dayNames[date.getDay()]}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    renderGanttTasks(container, tasks, startDate, endDate, dates) {
+        const categoryIcons = {
+            '工作': '💼', '学习': '📚', '运动': '🏃',
+            '娱乐': '🎮', '生活': '🏠', '其他': '📝'
+        };
+
+        container.innerHTML = tasks.map(task => {
+            const taskStart = task.start_date ? new Date(task.start_date) : new Date(task.due_date);
+            const taskEnd = task.due_date ? new Date(task.due_date) : new Date(task.start_date);
+
+            // 计算任务条的位置和宽度
+            const { left, width } = this.calculateTaskBarPosition(taskStart, taskEnd, startDate, dates);
+
+            return `
+                <div class="gantt-task-row">
+                    <div class="gantt-task-info">
+                        <div class="gantt-task-title">${task.title}</div>
+                        <div class="gantt-task-meta">
+                            <span>${categoryIcons[task.category] || '📝'} ${task.category}</span>
+                            <span class="priority-${task.priority}">
+                                ${task.priority === 1 ? '高' : task.priority === 2 ? '中' : '低'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="gantt-task-timeline">
+                        <div class="gantt-task-bar priority-${task.priority} ${task.is_completed ? 'completed' : ''}"
+                             style="left: ${left}%; width: ${width}%;"
+                             title="${task.title}">
+                            ${task.title.length > 15 ? task.title.substring(0, 15) + '...' : task.title}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    calculateTaskBarPosition(taskStart, taskEnd, timelineStart, dates) {
+        const dayWidth = 100 / dates.length; // 每天占用的百分比宽度
+
+        // 计算开始位置
+        const startDiff = Math.max(0, Math.floor((taskStart - timelineStart) / (24 * 60 * 60 * 1000)));
+        const left = startDiff * dayWidth;
+
+        // 计算宽度
+        const duration = Math.max(1, Math.ceil((taskEnd - taskStart) / (24 * 60 * 60 * 1000)) + 1);
+        const width = Math.min(duration * dayWidth, 100 - left);
+
+        return { left, width };
+    }
+
+    getWeekStart(date) {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // 周一开始
+        return new Date(d.setDate(diff));
+    }
+
+    // 甘特图控制方法
+    showGanttToday() {
+        this.renderGanttChart('today');
+    }
+
+    showGanttWeek() {
+        this.renderGanttChart('week');
+    }
+
+    showGanttMonth() {
+        this.renderGanttChart('month');
     }
 }
 
