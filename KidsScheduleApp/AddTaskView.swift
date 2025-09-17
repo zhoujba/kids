@@ -13,6 +13,7 @@ struct AddTaskView: View {
     @State private var title = ""
     @State private var description = ""
     @State private var category = "工作"
+    @State private var startDate = Date() // 开始时间，默认为当前时间
     @State private var dueDate = Date().addingTimeInterval(3600) // 默认1小时后
     @State private var priority = 1
     @State private var enableNotification = true
@@ -64,7 +65,21 @@ struct AddTaskView: View {
                 }
 
                 Section("时间设置") {
+                    DatePicker("开始时间", selection: $startDate, displayedComponents: [.date, .hourAndMinute])
+
                     DatePicker("截止时间", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+                        .onChange(of: dueDate) { newValue in
+                            // 确保截止时间不早于开始时间
+                            if newValue < startDate {
+                                startDate = newValue.addingTimeInterval(-3600) // 开始时间设为截止时间前1小时
+                            }
+                        }
+                        .onChange(of: startDate) { newValue in
+                            // 确保开始时间不晚于截止时间
+                            if newValue > dueDate {
+                                dueDate = newValue.addingTimeInterval(3600) // 截止时间设为开始时间后1小时
+                            }
+                        }
 
                     Toggle("启用提醒", isOn: $enableNotification)
                 }
@@ -111,6 +126,7 @@ struct AddTaskView: View {
             title = task.title ?? ""
             description = task.taskDescription ?? ""
             category = task.category ?? "学习"
+            startDate = task.startDate ?? Date()
             dueDate = task.dueDate ?? Date().addingTimeInterval(3600)
             priority = Int(task.priority)
             enableNotification = task.notificationID != nil
@@ -150,6 +166,7 @@ struct AddTaskView: View {
         task.title = title
         task.taskDescription = description.isEmpty ? nil : description
         task.category = category
+        task.startDate = startDate
         task.dueDate = dueDate
         task.priority = Int16(priority)
         task.lastModified = Date()

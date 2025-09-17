@@ -19,18 +19,20 @@ import (
 
 // Task 结构体
 type Task struct {
-	ID          interface{} `json:"id" db:"id"`
-	UserID      string      `json:"user_id" db:"user_id"`
-	Title       string      `json:"title" db:"title"`
-	Description string      `json:"description" db:"description"`
-	DueDate     string      `json:"due_date" db:"due_date"`
-	IsCompleted bool        `json:"is_completed" db:"is_completed"`
-	Category    string      `json:"category" db:"category"`
-	Priority    int         `json:"priority" db:"priority"`
-	DeviceID    string      `json:"device_id" db:"device_id"`
-	RecordID    string      `json:"record_id" db:"record_id"`
-	CreatedAt   string      `json:"created_at" db:"created_at"`
-	UpdatedAt   string      `json:"updated_at" db:"updated_at"`
+	ID            interface{} `json:"id" db:"id"`
+	UserID        string      `json:"user_id" db:"user_id"`
+	Title         string      `json:"title" db:"title"`
+	Description   string      `json:"description" db:"description"`
+	StartDate     string      `json:"start_date" db:"start_date"`
+	DueDate       string      `json:"due_date" db:"due_date"`
+	IsCompleted   bool        `json:"is_completed" db:"is_completed"`
+	Category      string      `json:"category" db:"category"`
+	Priority      int         `json:"priority" db:"priority"`
+	DeviceID      string      `json:"device_id" db:"device_id"`
+	RecordID      string      `json:"record_id" db:"record_id"`
+	CreatedAt     string      `json:"created_at" db:"created_at"`
+	UpdatedAt     string      `json:"updated_at" db:"updated_at"`
+	DailyProgress string      `json:"daily_progress" db:"daily_progress"` // JSON格式存储每日进度
 }
 
 // API响应结构体
@@ -83,6 +85,7 @@ func initDB() {
 		user_id TEXT DEFAULT 'default_user',
 		title TEXT NOT NULL,
 		description TEXT,
+		start_date TEXT,
 		due_date TEXT,
 		is_completed INTEGER DEFAULT 0,
 		category TEXT DEFAULT '学习',
@@ -90,7 +93,8 @@ func initDB() {
 		device_id TEXT,
 		record_id TEXT,
 		created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-		updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+		updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+		daily_progress TEXT DEFAULT '{}'
 	);`
 
 	_, err = db.Exec(createTableSQL)
@@ -103,6 +107,8 @@ func initDB() {
 		"ALTER TABLE tasks ADD COLUMN category TEXT DEFAULT '学习'",
 		"ALTER TABLE tasks ADD COLUMN priority INTEGER DEFAULT 1",
 		"ALTER TABLE tasks ADD COLUMN record_id TEXT",
+		"ALTER TABLE tasks ADD COLUMN start_date TEXT",
+		"ALTER TABLE tasks ADD COLUMN daily_progress TEXT DEFAULT '{}'",
 	}
 
 	for _, sql := range alterTableSQL {
@@ -431,11 +437,14 @@ func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 // 数据库操作函数
 func getAllTasks(userID string) ([]Task, error) {
-	query := `SELECT id, user_id, title, description, due_date, is_completed,
+	query := `SELECT id, user_id, title, description,
+	          COALESCE(start_date, '') as start_date,
+	          due_date, is_completed,
 	          COALESCE(category, '学习') as category,
 	          COALESCE(priority, 1) as priority,
 	          device_id, COALESCE(record_id, '') as record_id,
-	          created_at, updated_at
+	          created_at, updated_at,
+	          COALESCE(daily_progress, '{}') as daily_progress
 	          FROM tasks WHERE user_id = ? ORDER BY created_at DESC`
 
 	rows, err := db.Query(query, userID)
@@ -450,8 +459,8 @@ func getAllTasks(userID string) ([]Task, error) {
 		var task Task
 		err := rows.Scan(
 			&task.ID, &task.UserID, &task.Title, &task.Description,
-			&task.DueDate, &task.IsCompleted, &task.Category, &task.Priority,
-			&task.DeviceID, &task.RecordID, &task.CreatedAt, &task.UpdatedAt,
+			&task.StartDate, &task.DueDate, &task.IsCompleted, &task.Category, &task.Priority,
+			&task.DeviceID, &task.RecordID, &task.CreatedAt, &task.UpdatedAt, &task.DailyProgress,
 		)
 		if err != nil {
 			log.Printf("❌ 扫描任务数据失败: %v", err)
@@ -602,15 +611,17 @@ func handleCreateTask(data interface{}) {
 	}
 
 	task := &Task{
-		UserID:      getString(taskMap, "user_id"),
-		Title:       getString(taskMap, "title"),
-		Description: getString(taskMap, "description"),
-		DueDate:     getString(taskMap, "due_date"),
-		IsCompleted: getBool(taskMap, "is_completed"),
-		Category:    getString(taskMap, "category"),
-		Priority:    getInt(taskMap, "priority"),
-		DeviceID:    getString(taskMap, "device_id"),
-		RecordID:    getString(taskMap, "record_id"),
+		UserID:        getString(taskMap, "user_id"),
+		Title:         getString(taskMap, "title"),
+		Description:   getString(taskMap, "description"),
+		StartDate:     getString(taskMap, "start_date"),
+		DueDate:       getString(taskMap, "due_date"),
+		IsCompleted:   getBool(taskMap, "is_completed"),
+		Category:      getString(taskMap, "category"),
+		Priority:      getInt(taskMap, "priority"),
+		DeviceID:      getString(taskMap, "device_id"),
+		RecordID:      getString(taskMap, "record_id"),
+		DailyProgress: getStringWithDefault(taskMap, "daily_progress", "{}"),
 	}
 
 	// 通过API创建任务
@@ -633,15 +644,17 @@ func handleUpdateTask(data interface{}) {
 	}
 
 	task := &Task{
-		UserID:      getString(taskMap, "user_id"),
-		Title:       getString(taskMap, "title"),
-		Description: getString(taskMap, "description"),
-		DueDate:     getString(taskMap, "due_date"),
-		IsCompleted: getBool(taskMap, "is_completed"),
-		Category:    getString(taskMap, "category"),
-		Priority:    getInt(taskMap, "priority"),
-		DeviceID:    getString(taskMap, "device_id"),
-		RecordID:    getString(taskMap, "record_id"),
+		UserID:        getString(taskMap, "user_id"),
+		Title:         getString(taskMap, "title"),
+		Description:   getString(taskMap, "description"),
+		StartDate:     getString(taskMap, "start_date"),
+		DueDate:       getString(taskMap, "due_date"),
+		IsCompleted:   getBool(taskMap, "is_completed"),
+		Category:      getString(taskMap, "category"),
+		Priority:      getInt(taskMap, "priority"),
+		DeviceID:      getString(taskMap, "device_id"),
+		RecordID:      getString(taskMap, "record_id"),
+		DailyProgress: getStringWithDefault(taskMap, "daily_progress", "{}"),
 	}
 
 	// 通过API更新任务
@@ -688,6 +701,17 @@ func getString(m map[string]interface{}, key string) string {
 		}
 	}
 	return ""
+}
+
+func getStringWithDefault(m map[string]interface{}, key string, defaultValue string) string {
+	if val, ok := m[key]; ok {
+		if str, ok := val.(string); ok {
+			if str != "" {
+				return str
+			}
+		}
+	}
+	return defaultValue
 }
 
 // 获取任务ID的字符串表示
@@ -748,14 +772,14 @@ func createTaskViaAPI(task *Task) error {
 		task.ID = fmt.Sprintf("task_%d", time.Now().UnixNano())
 	}
 
-	query := `INSERT INTO tasks (id, user_id, title, description, due_date, is_completed,
-	          category, priority, device_id, record_id, created_at, updated_at)
-	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+	query := `INSERT INTO tasks (id, user_id, title, description, start_date, due_date, is_completed,
+	          category, priority, device_id, record_id, created_at, updated_at, daily_progress)
+	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)`
 
 	_, err := db.Exec(query,
 		task.ID, task.UserID, task.Title, task.Description,
-		task.DueDate, task.IsCompleted, task.Category, task.Priority,
-		task.DeviceID, task.RecordID)
+		task.StartDate, task.DueDate, task.IsCompleted, task.Category, task.Priority,
+		task.DeviceID, task.RecordID, task.DailyProgress)
 
 	if err != nil {
 		log.Printf("❌ 创建任务失败: %v", err)
