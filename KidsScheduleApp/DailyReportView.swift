@@ -4,6 +4,7 @@ struct DailyReportView: View {
     @Environment(\.dismiss) private var dismiss
     let report: WorkDailyReport
     @State private var showingShareSheet = false
+    @State private var showingCopySuccess = false
     
     var body: some View {
         NavigationView {
@@ -38,14 +39,45 @@ struct DailyReportView: View {
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("分享") {
-                        showingShareSheet = true
+                    HStack(spacing: 16) {
+                        Button("复制") {
+                            copyReportText()
+                        }
+                        .foregroundColor(.blue)
+
+                        Button("分享") {
+                            showingShareSheet = true
+                        }
+                        .foregroundColor(.blue)
                     }
                 }
             }
             .sheet(isPresented: $showingShareSheet) {
                 ShareSheet(activityItems: [generateReportText()])
             }
+            .overlay(
+                // 复制成功提示
+                Group {
+                    if showingCopySuccess {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Text("✅ 已复制到剪贴板")
+                                    .font(.caption)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color.black.opacity(0.8))
+                                    .foregroundColor(.white)
+                                    .cornerRadius(20)
+                                Spacer()
+                            }
+                            .padding(.bottom, 100)
+                        }
+                        .transition(.opacity)
+                    }
+                }
+            )
         }
     }
 
@@ -335,6 +367,23 @@ struct DailyReportView: View {
         text += "\n• 完成率：\(String(format: "%.1f", report.completionRate))%"
 
         return text
+    }
+
+    private func copyReportText() {
+        let reportText = generateReportText()
+        UIPasteboard.general.string = reportText
+
+        // 显示复制成功提示
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showingCopySuccess = true
+        }
+
+        // 2秒后隐藏提示
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showingCopySuccess = false
+            }
+        }
     }
 }
 
