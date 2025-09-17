@@ -447,7 +447,7 @@ struct DailyReportView: View {
         if !incompleteTasks.isEmpty {
             text += "\n\n📋 今日待完成："
             for (index, task) in incompleteTasks.enumerated() {
-                text += "\n\(index + 1). \(task.title ?? "未命名任务") (\(task.formattedWorkProgress))"
+                text += "\n\(index + 1). \(task.title ?? "未命名任务")"
             }
         }
 
@@ -455,9 +455,6 @@ struct DailyReportView: View {
             text += "\n\n📅 未来安排："
             for (index, task) in futureTasks.prefix(8).enumerated() {
                 text += "\n\(index + 1). \(task.title ?? "未命名任务")"
-                if let dueDate = task.dueDate {
-                    text += " (\(formatTaskDate(dueDate)))"
-                }
             }
             if futureTasks.count > 8 {
                 text += "\n... 还有 \(futureTasks.count - 8) 个未来任务"

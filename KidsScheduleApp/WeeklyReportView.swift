@@ -391,7 +391,7 @@ struct WeeklyReportView: View {
         text += "\n\n🎯 下周计划："
         let ongoingTasks = overview.allTasks.filter { !$0.isCompleted }
         for (index, task) in ongoingTasks.enumerated() {
-            text += "\n\(index + 1). \(task.title ?? "未命名任务") (当前进度：\(task.formattedWorkProgress))"
+            text += "\n\(index + 1). \(task.title ?? "未命名任务")"
         }
         
         text += "\n\n📊 本周统计："

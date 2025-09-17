@@ -43,6 +43,7 @@ class TaskManager {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.hideAddTaskModal();
+                hideReportModal();
             }
         });
 
@@ -50,6 +51,18 @@ class TaskManager {
         document.getElementById('addTaskModal').addEventListener('click', (e) => {
             if (e.target.id === 'addTaskModal') {
                 this.hideAddTaskModal();
+            }
+        });
+
+        // 点击报告模态框外部关闭
+        document.addEventListener('DOMContentLoaded', () => {
+            const reportModal = document.getElementById('reportModal');
+            if (reportModal) {
+                reportModal.addEventListener('click', (e) => {
+                    if (e.target.id === 'reportModal') {
+                        hideReportModal();
+                    }
+                });
             }
         });
     }
@@ -806,6 +819,534 @@ function markAllCompleted() {
 
 function clearCompleted() {
     taskManager.clearCompleted();
+}
+
+// 报告功能
+function generateDailyReport() {
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const todayTasks = taskManager.tasks.filter(task => {
+        const taskDate = new Date(task.dueDate);
+        return taskDate >= todayStart && taskDate < todayEnd;
+    });
+
+    const completedTasks = todayTasks.filter(task => task.isCompleted);
+    const ongoingTasks = todayTasks.filter(task => !task.isCompleted);
+
+    // 获取未来任务
+    const futureTasks = taskManager.tasks.filter(task => {
+        const taskDate = new Date(task.dueDate);
+        return taskDate >= todayEnd && !task.isCompleted;
+    }).slice(0, 8);
+
+    const reportContent = generateDailyReportHTML(todayTasks, completedTasks, ongoingTasks, futureTasks, today);
+    showReportModal('📊 ' + formatDate(today) + ' 活动日报', reportContent);
+}
+
+function generateWeeklyReport() {
+    const today = new Date();
+    const weekStart = getWeekStart(today);
+    const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const weekTasks = taskManager.tasks.filter(task => {
+        const taskDate = new Date(task.dueDate);
+        return taskDate >= weekStart && taskDate < weekEnd;
+    });
+
+    const completedTasks = weekTasks.filter(task => task.isCompleted);
+    const ongoingTasks = weekTasks.filter(task => !task.isCompleted);
+
+    // 按类型分组
+    const tasksByCategory = {};
+    weekTasks.forEach(task => {
+        const category = task.category || '其他';
+        if (!tasksByCategory[category]) {
+            tasksByCategory[category] = [];
+        }
+        tasksByCategory[category].push(task);
+    });
+
+    const reportContent = generateWeeklyReportHTML(weekTasks, tasksByCategory, weekStart, weekEnd);
+    showReportModal('📈 ' + formatWeekRange(weekStart, weekEnd) + ' 周报', reportContent);
+}
+
+function showReportModal(title, content) {
+    document.getElementById('reportTitle').textContent = title;
+    document.getElementById('reportContent').innerHTML = content;
+    document.getElementById('reportModal').style.display = 'flex';
+
+    // 存储当前报告内容用于复制
+    window.currentReportText = generateReportText(content);
+}
+
+function hideReportModal() {
+    document.getElementById('reportModal').style.display = 'none';
+}
+
+function copyReportText() {
+    if (window.currentReportText) {
+        navigator.clipboard.writeText(window.currentReportText).then(() => {
+            // 显示复制成功提示
+            const copyBtn = document.querySelector('#reportModal .btn-primary');
+            const originalText = copyBtn.innerHTML;
+            copyBtn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+            copyBtn.style.background = 'var(--success-color)';
+
+            setTimeout(() => {
+                copyBtn.innerHTML = originalText;
+                copyBtn.style.background = '';
+            }, 2000);
+        }).catch(err => {
+            console.error('复制失败:', err);
+            alert('复制失败，请手动复制内容');
+        });
+    }
+}
+
+// 报告生成辅助函数
+function generateDailyReportHTML(todayTasks, completedTasks, ongoingTasks, futureTasks, date) {
+    const categoryIcons = {
+        '工作': '💼',
+        '学习': '📚',
+        '运动': '🏃',
+        '娱乐': '🎮',
+        '生活': '🏠',
+        '其他': '📝'
+    };
+
+    let html = `
+        <div class="report-content">
+            <div class="report-section">
+                <div class="report-section-title">
+                    <i class="fas fa-list"></i>
+                    今日工作内容
+                </div>
+                <ul class="report-list">
+    `;
+
+    if (todayTasks.length === 0) {
+        html += '<li>今日暂无任务</li>';
+    } else {
+        todayTasks.forEach((task, index) => {
+            const icon = categoryIcons[task.category] || '📋';
+            const status = task.isCompleted ? '✅ 已完成' : '🔄 进行中';
+            html += `
+                <li>
+                    <span class="report-task-title">${index + 1}. ${task.title}</span>
+                    <span class="report-task-meta">${icon} ${task.category} | ${status}</span>
+                </li>
+            `;
+        });
+    }
+
+    html += `
+                </ul>
+            </div>
+
+            <div class="report-section">
+                <div class="report-section-title">
+                    <i class="fas fa-edit"></i>
+                    今日工作总结
+                </div>
+    `;
+
+    if (todayTasks.length === 0) {
+        html += '<p>今日暂无工作总结</p>';
+    } else {
+        todayTasks.forEach((task, index) => {
+            const icon = categoryIcons[task.category] || '📋';
+            html += `
+                <div class="report-subsection">
+                    <div class="report-subsection-title">
+                        ${index + 1}. ${task.title}
+                    </div>
+                    <p>详情：${task.description || '暂无详细说明'}</p>
+                    <p>分类：${icon} ${task.category}</p>
+                    <p>状态：${task.isCompleted ? '✅ 已完成' : '🔄 进行中'}</p>
+                </div>
+            `;
+        });
+    }
+
+    html += `
+            </div>
+
+            <div class="report-section">
+                <div class="report-section-title">
+                    <i class="fas fa-target"></i>
+                    下一步计划
+                </div>
+    `;
+
+    if (ongoingTasks.length > 0) {
+        html += `
+            <div class="report-subsection">
+                <div class="report-subsection-title">
+                    <i class="fas fa-clock" style="color: orange;"></i>
+                    今日待完成
+                </div>
+                <ul class="report-list">
+        `;
+        ongoingTasks.forEach((task, index) => {
+            const icon = categoryIcons[task.category] || '📋';
+            html += `
+                <li>
+                    <span class="report-task-title">• ${task.title}</span>
+                    <span class="report-task-meta">${icon} ${task.category}</span>
+                </li>
+            `;
+        });
+        html += '</ul></div>';
+    }
+
+    if (futureTasks.length > 0) {
+        html += `
+            <div class="report-subsection">
+                <div class="report-subsection-title">
+                    <i class="fas fa-calendar" style="color: purple;"></i>
+                    未来安排
+                </div>
+                <ul class="report-list">
+        `;
+        futureTasks.forEach((task, index) => {
+            const icon = categoryIcons[task.category] || '📋';
+            const taskDate = formatTaskDate(new Date(task.dueDate));
+            html += `
+                <li>
+                    <span class="report-task-title">• ${task.title}</span>
+                    <span class="report-task-meta">${icon} ${task.category} | ${taskDate}</span>
+                </li>
+            `;
+        });
+        html += '</ul></div>';
+    }
+
+    if (ongoingTasks.length === 0 && futureTasks.length === 0) {
+        html += '<p>暂无下一步计划</p>';
+    }
+
+    html += `
+            </div>
+
+            <div class="report-section">
+                <div class="report-section-title">
+                    <i class="fas fa-chart-bar"></i>
+                    统计概览
+                </div>
+                <div class="report-stats">
+                    <div class="report-stat-card">
+                        <div class="report-stat-value">${todayTasks.length}</div>
+                        <div class="report-stat-label">总任务</div>
+                    </div>
+                    <div class="report-stat-card">
+                        <div class="report-stat-value">${completedTasks.length}</div>
+                        <div class="report-stat-label">已完成</div>
+                    </div>
+                    <div class="report-stat-card">
+                        <div class="report-stat-value">${todayTasks.length > 0 ? Math.round(completedTasks.length / todayTasks.length * 100) : 0}%</div>
+                        <div class="report-stat-label">完成率</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    return html;
+}
+
+function generateWeeklyReportHTML(weekTasks, tasksByCategory, weekStart, weekEnd) {
+    const categoryIcons = {
+        '工作': '💼',
+        '学习': '📚',
+        '运动': '🏃',
+        '娱乐': '🎮',
+        '生活': '🏠',
+        '其他': '📝'
+    };
+
+    const completedTasks = weekTasks.filter(task => task.isCompleted);
+    const ongoingTasks = weekTasks.filter(task => !task.isCompleted);
+
+    let html = `
+        <div class="report-content">
+            <div class="report-section">
+                <div class="report-section-title">
+                    <i class="fas fa-list"></i>
+                    本周工作内容
+                </div>
+                <ul class="report-list">
+    `;
+
+    if (weekTasks.length === 0) {
+        html += '<li>本周暂无任务</li>';
+    } else {
+        weekTasks.forEach((task, index) => {
+            const icon = categoryIcons[task.category] || '📋';
+            const status = task.isCompleted ? '✅ 已完成' : '🔄 进行中';
+            html += `
+                <li>
+                    <span class="report-task-title">${index + 1}. ${task.title}</span>
+                    <span class="report-task-meta">${icon} ${task.category} | ${status}</span>
+                </li>
+            `;
+        });
+    }
+
+    html += `
+                </ul>
+            </div>
+
+            <div class="report-section">
+                <div class="report-section-title">
+                    <i class="fas fa-edit"></i>
+                    本周工作总结
+                </div>
+    `;
+
+    if (Object.keys(tasksByCategory).length === 0) {
+        html += '<p>本周暂无工作总结</p>';
+    } else {
+        Object.keys(tasksByCategory).sort().forEach(category => {
+            const tasks = tasksByCategory[category];
+            const completed = tasks.filter(task => task.isCompleted);
+            const ongoing = tasks.filter(task => !task.isCompleted);
+            const icon = categoryIcons[category] || '📋';
+
+            html += `
+                <div class="report-subsection">
+                    <div class="report-subsection-title">
+                        ${icon} ${category} (${completed.length}/${tasks.length} 完成)
+                    </div>
+            `;
+
+            if (completed.length > 0) {
+                html += '<p><strong>✅ 已完成：</strong></p><ul class="report-list">';
+                completed.forEach(task => {
+                    html += `<li><span class="report-task-title">• ${task.title}</span></li>`;
+                });
+                html += '</ul>';
+            }
+
+            if (ongoing.length > 0) {
+                html += '<p><strong>🔄 进行中：</strong></p><ul class="report-list">';
+                ongoing.forEach(task => {
+                    html += `<li><span class="report-task-title">• ${task.title}</span></li>`;
+                });
+                html += '</ul>';
+            }
+
+            html += '</div>';
+        });
+    }
+
+    html += `
+            </div>
+
+            <div class="report-section">
+                <div class="report-section-title">
+                    <i class="fas fa-target"></i>
+                    下周计划
+                </div>
+    `;
+
+    if (ongoingTasks.length === 0) {
+        html += '<p>暂无下周计划</p>';
+    } else {
+        html += '<p>继续推进以下任务：</p><ul class="report-list">';
+        ongoingTasks.forEach((task, index) => {
+            const icon = categoryIcons[task.category] || '📋';
+            html += `
+                <li>
+                    <span class="report-task-title">${index + 1}. ${task.title}</span>
+                    <span class="report-task-meta">${icon} ${task.category}</span>
+                </li>
+            `;
+        });
+        html += '</ul>';
+    }
+
+    html += `
+            </div>
+
+            <div class="report-section">
+                <div class="report-section-title">
+                    <i class="fas fa-chart-bar"></i>
+                    本周统计
+                </div>
+                <div class="report-stats">
+                    <div class="report-stat-card">
+                        <div class="report-stat-value">${weekTasks.length}</div>
+                        <div class="report-stat-label">总任务</div>
+                    </div>
+                    <div class="report-stat-card">
+                        <div class="report-stat-value">${completedTasks.length}</div>
+                        <div class="report-stat-label">已完成</div>
+                    </div>
+                    <div class="report-stat-card">
+                        <div class="report-stat-value">${weekTasks.length > 0 ? Math.round(completedTasks.length / weekTasks.length * 100) : 0}%</div>
+                        <div class="report-stat-label">完成率</div>
+                    </div>
+                    <div class="report-stat-card">
+                        <div class="report-stat-value">${ongoingTasks.length}</div>
+                        <div class="report-stat-label">进行中</div>
+                    </div>
+                </div>
+    `;
+
+    if (Object.keys(tasksByCategory).length > 0) {
+        html += `
+                <div style="margin-top: 20px;">
+                    <h4>分类统计</h4>
+                    <ul class="report-list">
+        `;
+        Object.keys(tasksByCategory).sort().forEach(category => {
+            const tasks = tasksByCategory[category];
+            const completed = tasks.filter(task => task.isCompleted).length;
+            const icon = categoryIcons[category] || '📋';
+            html += `
+                <li>
+                    <span class="report-task-title">${icon} ${category}</span>
+                    <span class="report-task-meta">${completed}/${tasks.length}</span>
+                </li>
+            `;
+        });
+        html += '</ul></div>';
+    }
+
+    html += `
+            </div>
+        </div>
+    `;
+
+    return html;
+}
+
+// 日期格式化辅助函数
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}年${month}月${day}日`;
+}
+
+function formatWeekRange(startDate, endDate) {
+    const startMonth = String(startDate.getMonth() + 1).padStart(2, '0');
+    const startDay = String(startDate.getDate()).padStart(2, '0');
+    const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
+    const endDay = String(endDate.getDate()).padStart(2, '0');
+    return `${startMonth}月${startDay}日 - ${endMonth}月${endDay}日`;
+}
+
+function formatTaskDate(date) {
+    const today = new Date();
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const dayAfterTomorrow = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+    const taskDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const tomorrowDate = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
+    const dayAfterTomorrowDate = new Date(dayAfterTomorrow.getFullYear(), dayAfterTomorrow.getMonth(), dayAfterTomorrow.getDate());
+
+    if (taskDate.getTime() === todayDate.getTime()) {
+        return '今天';
+    } else if (taskDate.getTime() === tomorrowDate.getTime()) {
+        return '明天';
+    } else if (taskDate.getTime() === dayAfterTomorrowDate.getTime()) {
+        return '后天';
+    } else {
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${month}月${day}日`;
+    }
+}
+
+function getWeekStart(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // 调整为周一开始
+    return new Date(d.setDate(diff));
+}
+
+// 生成纯文本报告用于复制
+function generateReportText(htmlContent) {
+    // 创建临时div来解析HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+
+    // 提取文本内容
+    let text = '';
+
+    // 获取报告标题
+    const title = document.getElementById('reportTitle').textContent;
+    text += title + '\n\n';
+
+    // 遍历所有section
+    const sections = tempDiv.querySelectorAll('.report-section');
+    sections.forEach(section => {
+        const sectionTitle = section.querySelector('.report-section-title');
+        if (sectionTitle) {
+            text += sectionTitle.textContent.trim() + '：\n';
+        }
+
+        // 处理列表
+        const lists = section.querySelectorAll('.report-list');
+        lists.forEach(list => {
+            const items = list.querySelectorAll('li');
+            items.forEach(item => {
+                const taskTitle = item.querySelector('.report-task-title');
+                if (taskTitle) {
+                    text += taskTitle.textContent.trim() + '\n';
+                } else {
+                    text += item.textContent.trim() + '\n';
+                }
+            });
+        });
+
+        // 处理子section
+        const subsections = section.querySelectorAll('.report-subsection');
+        subsections.forEach(subsection => {
+            const subsectionTitle = subsection.querySelector('.report-subsection-title');
+            if (subsectionTitle) {
+                text += '\n' + subsectionTitle.textContent.trim() + '\n';
+            }
+
+            const paragraphs = subsection.querySelectorAll('p');
+            paragraphs.forEach(p => {
+                if (p.textContent.trim()) {
+                    text += p.textContent.trim() + '\n';
+                }
+            });
+
+            const sublists = subsection.querySelectorAll('.report-list');
+            sublists.forEach(list => {
+                const items = list.querySelectorAll('li');
+                items.forEach(item => {
+                    const taskTitle = item.querySelector('.report-task-title');
+                    if (taskTitle) {
+                        text += taskTitle.textContent.trim() + '\n';
+                    }
+                });
+            });
+        });
+
+        // 处理统计数据
+        const stats = section.querySelectorAll('.report-stat-card');
+        if (stats.length > 0) {
+            stats.forEach(stat => {
+                const value = stat.querySelector('.report-stat-value');
+                const label = stat.querySelector('.report-stat-label');
+                if (value && label) {
+                    text += `• ${label.textContent}：${value.textContent}\n`;
+                }
+            });
+        }
+
+        text += '\n';
+    });
+
+    return text.trim();
 }
 
 // 初始化任务管理器

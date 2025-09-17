@@ -1012,6 +1012,94 @@
                 margin: 16px;
             }
         }
+
+        /* 报告样式 */
+        .report-content {
+            padding: 24px;
+            line-height: 1.8;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .report-section {
+            margin-bottom: 32px;
+        }
+
+        .report-section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .report-subsection {
+            margin-bottom: 20px;
+        }
+
+        .report-subsection-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--secondary-color);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .report-list {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .report-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .report-list li:last-child {
+            border-bottom: none;
+        }
+
+        .report-task-title {
+            font-weight: 500;
+        }
+
+        .report-task-meta {
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        .report-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .report-stat-card {
+            background: var(--background-tertiary);
+            padding: 16px;
+            border-radius: var(--border-radius);
+            text-align: center;
+        }
+
+        .report-stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .report-stat-label {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -1056,6 +1144,14 @@
                     <button class="quick-action-btn" onclick="clearCompleted()">
                         <i class="fas fa-trash"></i>
                         清理已完成
+                    </button>
+                    <button class="quick-action-btn" onclick="generateDailyReport()">
+                        <i class="fas fa-file-alt"></i>
+                        生成日报
+                    </button>
+                    <button class="quick-action-btn" onclick="generateWeeklyReport()">
+                        <i class="fas fa-chart-line"></i>
+                        生成周报
                     </button>
                 </div>
             </div>
@@ -1256,6 +1352,28 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- 报告模态框 -->
+    <div class="add-task-modal" id="reportModal">
+        <div class="modal-content" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="reportTitle">工作报告</h3>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button class="btn-primary" onclick="copyReportText()" style="padding: 8px 16px; font-size: 14px;">
+                        <i class="fas fa-copy"></i>
+                        复制
+                    </button>
+                    <button class="close-btn" onclick="hideReportModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="report-content" id="reportContent">
+                <!-- 报告内容将在这里动态生成 -->
+            </div>
         </div>
     </div>
 
