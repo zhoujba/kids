@@ -5,6 +5,7 @@ struct WorkCenterView: View {
     @State private var showingProgressUpdate = false
     @State private var selectedTask: TaskItem?
     @State private var showingDailyReport = false
+    @State private var showingWeeklyReport = false
     @State private var showingAnalytics = false
     
     var body: some View {
@@ -29,6 +30,11 @@ struct WorkCenterView: View {
             .sheet(isPresented: $showingDailyReport) {
                 if let report = workManager.lastDailyReport {
                     DailyReportView(report: report)
+                }
+            }
+            .sheet(isPresented: $showingWeeklyReport) {
+                if let overview = workManager.weeklyOverview {
+                    WeeklyReportView(overview: overview)
                 }
             }
             .sheet(isPresented: $showingAnalytics) {
@@ -113,10 +119,22 @@ struct WorkCenterView: View {
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
-                if let overview = workManager.weeklyOverview {
-                    Text(overview.formattedWeekRange)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                HStack(spacing: 8) {
+                    Button("生成周报") {
+                        showingWeeklyReport = true
+                    }
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.purple.opacity(0.1))
+                    .foregroundColor(.purple)
+                    .cornerRadius(8)
+
+                    if let overview = workManager.weeklyOverview {
+                        Text(overview.formattedWeekRange)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
 
