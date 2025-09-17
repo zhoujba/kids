@@ -228,50 +228,97 @@ struct DailyReportView: View {
 
             let incompleteTasks = report.ongoingTasks
             let futureTasks = getFutureTasks()
-            let allNextTasks = incompleteTasks + futureTasks
 
-            if allNextTasks.isEmpty {
+            if incompleteTasks.isEmpty && futureTasks.isEmpty {
                 Text("暂无下一步计划")
                     .foregroundColor(.secondary)
                     .padding(.vertical, 8)
             } else {
-                ForEach(Array(allNextTasks.prefix(5).enumerated()), id: \.offset) { index, task in
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("\(index + 1).")
-                            .fontWeight(.medium)
-                            .foregroundColor(.purple)
+                VStack(alignment: .leading, spacing: 12) {
+                    // 今日未完成任务
+                    if !incompleteTasks.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("📋 今日待完成")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.orange)
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(task.title ?? "未命名任务")
-                                .fontWeight(.medium)
-
-                            HStack {
-                                Text("\(categoryIcon(for: task.category ?? "其他")) \(task.category ?? "其他")")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-
-                                Spacer()
-
-                                if incompleteTasks.contains(task) {
-                                    Text("🔄 继续推进")
-                                        .font(.caption)
+                            ForEach(Array(incompleteTasks.enumerated()), id: \.offset) { index, task in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Text("•")
+                                        .fontWeight(.medium)
                                         .foregroundColor(.orange)
-                                } else {
-                                    Text("📅 计划中")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
+
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(task.title ?? "未命名任务")
+                                            .fontWeight(.medium)
+
+                                        HStack {
+                                            Text("\(categoryIcon(for: task.category ?? "其他")) \(task.category ?? "其他")")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+
+                                            Spacer()
+
+                                            Text("🔄 \(task.formattedWorkProgress)")
+                                                .font(.caption)
+                                                .foregroundColor(.orange)
+                                        }
+                                    }
                                 }
+                                .padding(.vertical, 2)
                             }
                         }
                     }
-                    .padding(.vertical, 4)
-                }
 
-                if allNextTasks.count > 5 {
-                    Text("... 还有 \(allNextTasks.count - 5) 项任务")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 4)
+                    // 未来任务
+                    if !futureTasks.isEmpty {
+                        if !incompleteTasks.isEmpty {
+                            Divider()
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("📅 未来安排")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.purple)
+
+                            ForEach(Array(futureTasks.prefix(8).enumerated()), id: \.offset) { index, task in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Text("•")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.purple)
+
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(task.title ?? "未命名任务")
+                                            .fontWeight(.medium)
+
+                                        HStack {
+                                            Text("\(categoryIcon(for: task.category ?? "其他")) \(task.category ?? "其他")")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+
+                                            Spacer()
+
+                                            if let dueDate = task.dueDate {
+                                                Text(formatTaskDate(dueDate))
+                                                    .font(.caption)
+                                                    .foregroundColor(.purple)
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(.vertical, 2)
+                            }
+
+                            if futureTasks.count > 8 {
+                                Text("... 还有 \(futureTasks.count - 8) 个未来任务")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.top, 4)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -324,9 +371,46 @@ struct DailyReportView: View {
 
     // MARK: - 辅助方法
     private func getFutureTasks() -> [TaskItem] {
-        // 这里应该从WorkManager获取未来的任务
-        // 暂时返回空数组，后续可以扩展
-        return []
+        let workManager = WorkManager.shared
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
+
+        // 获取明天到本周结束的任务
+        let thisWeekEnd = calendar.dateInterval(of: .weekOfYear, for: Date())?.end ?? Date()
+        let thisWeekFutureTasks = workManager.thisWeekWorkTasks.filter { task in
+            guard let dueDate = task.dueDate else { return false }
+            return dueDate >= tomorrow && dueDate < thisWeekEnd
+        }
+
+        // 获取下周的任务
+        let nextWeekTasks = workManager.nextWeekWorkTasks
+
+        // 合并并按日期排序
+        let allFutureTasks = (thisWeekFutureTasks + nextWeekTasks).sorted { task1, task2 in
+            guard let date1 = task1.dueDate, let date2 = task2.dueDate else { return false }
+            return date1 < date2
+        }
+
+        return allFutureTasks
+    }
+
+    private func formatTaskDate(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let taskDate = calendar.startOfDay(for: date)
+
+        if calendar.isDate(taskDate, inSameDayAs: today) {
+            return "今天"
+        } else if taskDate == calendar.date(byAdding: .day, value: 1, to: today) {
+            return "明天"
+        } else if taskDate == calendar.date(byAdding: .day, value: 2, to: today) {
+            return "后天"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MM月dd日"
+            return formatter.string(from: date)
+        }
     }
 
     private func generateReportText() -> String {
@@ -356,9 +440,28 @@ struct DailyReportView: View {
         }
 
         text += "\n\n🎯 下一步计划："
-        let nextTasks = report.ongoingTasks
-        for (index, task) in nextTasks.enumerated() {
-            text += "\n\(index + 1). \(task.title ?? "未命名任务")"
+
+        let incompleteTasks = report.ongoingTasks
+        let futureTasks = getFutureTasks()
+
+        if !incompleteTasks.isEmpty {
+            text += "\n\n📋 今日待完成："
+            for (index, task) in incompleteTasks.enumerated() {
+                text += "\n\(index + 1). \(task.title ?? "未命名任务") (\(task.formattedWorkProgress))"
+            }
+        }
+
+        if !futureTasks.isEmpty {
+            text += "\n\n📅 未来安排："
+            for (index, task) in futureTasks.prefix(8).enumerated() {
+                text += "\n\(index + 1). \(task.title ?? "未命名任务")"
+                if let dueDate = task.dueDate {
+                    text += " (\(formatTaskDate(dueDate)))"
+                }
+            }
+            if futureTasks.count > 8 {
+                text += "\n... 还有 \(futureTasks.count - 8) 个未来任务"
+            }
         }
 
         text += "\n\n📊 统计概览："
