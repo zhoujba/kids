@@ -352,47 +352,34 @@
         .task-item {
             background: var(--background-secondary);
             border-radius: var(--border-radius);
-            padding: 20px;
-            margin-bottom: 8px;
-            border: 1px solid var(--border-color);
+            padding: 18px 20px;
+            margin-bottom: 6px;
+            border: 1px solid var(--border-color-light);
             transition: var(--transition);
             position: relative;
-            overflow: hidden;
-        }
-
-        .task-item::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 3px;
-            background: var(--border-color);
-            transition: var(--transition);
         }
 
         .task-item:hover {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-light);
-            border-color: var(--primary-light);
-        }
-
-        .task-item:hover::before {
-            background: var(--primary-color);
+            border-color: var(--border-color);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
         }
 
         .task-item.completed {
-            opacity: 0.7;
+            opacity: 0.6;
             background: var(--background-tertiary);
         }
 
-        .task-item.completed::before {
-            background: var(--success-color);
+        .task-item.priority-1 {
+            border-left: 3px solid #E53E3E;
         }
 
-        .task-item.priority-1::before { background: var(--error-color); }
-        .task-item.priority-2::before { background: var(--warning-color); }
-        .task-item.priority-3::before { background: var(--success-color); }
+        .task-item.priority-2 {
+            border-left: 3px solid #DD6B20;
+        }
+
+        .task-item.priority-3 {
+            border-left: 3px solid #38A169;
+        }
 
         .task-header {
             display: flex;
@@ -402,10 +389,10 @@
         }
 
         .task-checkbox {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             border: 2px solid var(--border-color);
-            border-radius: 50%;
+            border-radius: 4px;
             cursor: pointer;
             transition: var(--transition);
             position: relative;
@@ -415,14 +402,12 @@
         }
 
         .task-checkbox:hover {
-            border-color: var(--primary-color);
-            transform: scale(1.1);
+            border-color: var(--text-secondary);
         }
 
         .task-checkbox.checked {
-            background: var(--success-color);
-            border-color: var(--success-color);
-            transform: scale(1);
+            background: var(--primary-color);
+            border-color: var(--primary-color);
         }
 
         .task-checkbox.checked::after {
@@ -432,7 +417,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 700;
         }
 
@@ -442,11 +427,11 @@
         }
 
         .task-title {
-            font-size: 1.1rem;
-            font-weight: 600;
+            font-size: 1rem;
+            font-weight: 500;
             color: var(--text-primary);
-            line-height: 1.4;
-            margin-bottom: 4px;
+            line-height: 1.5;
+            margin-bottom: 6px;
             word-wrap: break-word;
         }
 
@@ -456,10 +441,10 @@
         }
 
         .task-description {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             color: var(--text-secondary);
             line-height: 1.4;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             word-wrap: break-word;
         }
 
@@ -471,37 +456,47 @@
         }
 
         .btn {
-            padding: 8px 12px;
-            border: none;
-            border-radius: 8px;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: 500;
             transition: var(--transition);
             display: flex;
             align-items: center;
-            gap: 6px;
-            min-width: 36px;
+            gap: 4px;
+            min-width: 32px;
             justify-content: center;
+            background: var(--background-secondary);
+            color: var(--text-secondary);
         }
 
         .btn-edit {
-            background: var(--primary-color);
-            color: white;
+            color: var(--primary-color);
+            border-color: var(--primary-light);
         }
 
         .btn-delete {
-            background: var(--error-color);
-            color: white;
+            color: #E53E3E;
+            border-color: #FED7D7;
         }
 
         .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-medium);
+            background: var(--background-hover);
+            border-color: var(--text-secondary);
         }
 
-        .btn:active {
-            transform: translateY(0);
+        .btn-edit:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .btn-delete:hover {
+            background: #E53E3E;
+            color: white;
+            border-color: #E53E3E;
         }
 
         .task-meta {
@@ -521,27 +516,35 @@
 
         .category-tag {
             background: var(--background-tertiary);
-            padding: 6px 12px;
-            border-radius: 16px;
-            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
             font-weight: 500;
-            border: 1px solid var(--border-color);
             color: var(--text-secondary);
+            border: none;
         }
 
         .priority-badge {
-            padding: 6px 12px;
-            border-radius: 16px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: white;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: var(--background-tertiary);
         }
 
-        .priority-1 { background: var(--error-color); }
-        .priority-2 { background: var(--warning-color); }
-        .priority-3 { background: var(--success-color); }
+        .priority-1 {
+            color: #E53E3E;
+            background: #FED7D7;
+        }
+        .priority-2 {
+            color: #DD6B20;
+            background: #FEEBC8;
+        }
+        .priority-3 {
+            color: #38A169;
+            background: #C6F6D5;
+        }
 
         .due-date {
             color: var(--text-tertiary);
