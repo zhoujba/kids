@@ -2,31 +2,45 @@ import SwiftUI
 import CoreData
 import UserNotifications
 
-// MARK: - 工作数据模型
+// MARK: - 日常活动数据模型
 struct WorkDailyReport {
     let date: Date
-    let workTasks: [TaskItem]
+    let allTasks: [TaskItem]  // 包含所有类型的任务
+    let tasksByCategory: [String: [TaskItem]]  // 按类型分组的任务
     let totalTimeSpent: Double
     let completedTasks: [TaskItem]
     let ongoingTasks: [TaskItem]
     let progressUpdates: Int
-    
+
     var formattedDate: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy年MM月dd日"
         return formatter.string(from: date)
     }
-    
+
     var completionRate: Double {
-        guard !workTasks.isEmpty else { return 0 }
-        return Double(completedTasks.count) / Double(workTasks.count) * 100
+        guard !allTasks.isEmpty else { return 0 }
+        return Double(completedTasks.count) / Double(allTasks.count) * 100
+    }
+
+    // 获取特定类型的任务数量
+    func taskCount(for category: String) -> Int {
+        return tasksByCategory[category]?.count ?? 0
+    }
+
+    // 获取特定类型的完成率
+    func completionRate(for category: String) -> Double {
+        guard let tasks = tasksByCategory[category], !tasks.isEmpty else { return 0 }
+        let completed = tasks.filter { $0.isCompleted }.count
+        return Double(completed) / Double(tasks.count) * 100
     }
 }
 
 struct WorkWeeklyOverview {
     let weekStart: Date
     let weekEnd: Date
-    let allWorkTasks: [TaskItem]
+    let allTasks: [TaskItem]  // 包含所有类型的任务
+    let tasksByCategory: [String: [TaskItem]]  // 按类型分组的任务
     let totalTimeSpent: Double
     let averageProgress: Double
     let completedCount: Int
@@ -39,13 +53,21 @@ struct WorkWeeklyOverview {
     }
 
     var completionRate: Double {
-        guard !allWorkTasks.isEmpty else { return 0 }
-        return Double(completedCount) / Double(allWorkTasks.count) * 100
+        guard !allTasks.isEmpty else { return 0 }
+        return Double(completedCount) / Double(allTasks.count) * 100
     }
 
     var averageTimePerTask: Double {
-        guard !allWorkTasks.isEmpty else { return 0 }
-        return totalTimeSpent / Double(allWorkTasks.count)
+        guard !allTasks.isEmpty else { return 0 }
+        return totalTimeSpent / Double(allTasks.count)
+    }
+
+    // 获取特定类型的任务统计
+    func categoryStats(for category: String) -> (count: Int, completed: Int, timeSpent: Double) {
+        guard let tasks = tasksByCategory[category] else { return (0, 0, 0) }
+        let completed = tasks.filter { $0.isCompleted }.count
+        let timeSpent = tasks.reduce(0) { $0 + $1.timeSpent }
+        return (tasks.count, completed, timeSpent)
     }
 
     var productivityScore: Double {
@@ -79,7 +101,10 @@ struct CategoryData {
 // MARK: - 工作管理器
 class WorkManager: ObservableObject {
     static let shared = WorkManager()
-    
+
+    // MARK: - 任务类型定义
+    static let taskCategories = ["工作", "学习", "运动", "娱乐", "生活", "其他"]
+
     @Published var todayWorkTasks: [TaskItem] = []
     @Published var thisWeekWorkTasks: [TaskItem] = []
     @Published var nextWeekWorkTasks: [TaskItem] = []
@@ -112,18 +137,22 @@ class WorkManager: ObservableObject {
         let request: NSFetchRequest<TaskItem> = TaskItem.fetchRequest()
         let today = Calendar.current.startOfDay(for: Date())
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
-        
-        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-            NSPredicate(format: "category == %@", "工作"),
-            NSPredicate(format: "dueDate >= %@ AND dueDate < %@", today as NSDate, tomorrow as NSDate)
-        ])
+
+        // 加载今日所有类型的任务
+        request.predicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@", today as NSDate, tomorrow as NSDate)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \TaskItem.dueDate, ascending: true)]
-        
+
         do {
             todayWorkTasks = try context.fetch(request)
-            print("📊 加载今日工作任务: \(todayWorkTasks.count)个")
+            print("📊 加载今日所有任务: \(todayWorkTasks.count)个")
+
+            // 按类型统计
+            let categoryStats = Dictionary(grouping: todayWorkTasks) { $0.category ?? "其他" }
+            for (category, tasks) in categoryStats {
+                print("   - \(category): \(tasks.count)个任务")
+            }
         } catch {
-            print("❌ 加载今日工作任务失败: \(error)")
+            print("❌ 加载今日任务失败: \(error)")
             todayWorkTasks = []
         }
     }
@@ -134,18 +163,16 @@ class WorkManager: ObservableObject {
         let today = Date()
         let weekStart = calendar.dateInterval(of: .weekOfYear, for: today)?.start ?? today
         let weekEnd = calendar.dateInterval(of: .weekOfYear, for: today)?.end ?? today
-        
-        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-            NSPredicate(format: "category == %@", "工作"),
-            NSPredicate(format: "dueDate >= %@ AND dueDate < %@", weekStart as NSDate, weekEnd as NSDate)
-        ])
+
+        // 加载本周所有类型的任务
+        request.predicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@", weekStart as NSDate, weekEnd as NSDate)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \TaskItem.dueDate, ascending: true)]
-        
+
         do {
             thisWeekWorkTasks = try context.fetch(request)
-            print("📈 加载本周工作任务: \(thisWeekWorkTasks.count)个")
+            print("📈 加载本周所有任务: \(thisWeekWorkTasks.count)个")
         } catch {
-            print("❌ 加载本周工作任务失败: \(error)")
+            print("❌ 加载本周任务失败: \(error)")
             thisWeekWorkTasks = []
         }
     }
@@ -157,18 +184,16 @@ class WorkManager: ObservableObject {
         let nextWeekStart = calendar.date(byAdding: .weekOfYear, value: 1, to: today)!
         let nextWeekStartOfWeek = calendar.dateInterval(of: .weekOfYear, for: nextWeekStart)?.start ?? nextWeekStart
         let nextWeekEnd = calendar.dateInterval(of: .weekOfYear, for: nextWeekStart)?.end ?? nextWeekStart
-        
-        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-            NSPredicate(format: "category == %@", "工作"),
-            NSPredicate(format: "dueDate >= %@ AND dueDate < %@", nextWeekStartOfWeek as NSDate, nextWeekEnd as NSDate)
-        ])
+
+        // 加载下周所有类型的任务
+        request.predicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@", nextWeekStartOfWeek as NSDate, nextWeekEnd as NSDate)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \TaskItem.dueDate, ascending: true)]
-        
+
         do {
             nextWeekWorkTasks = try context.fetch(request)
-            print("📋 加载下周工作任务: \(nextWeekWorkTasks.count)个")
+            print("📋 加载下周所有任务: \(nextWeekWorkTasks.count)个")
         } catch {
-            print("❌ 加载下周工作任务失败: \(error)")
+            print("❌ 加载下周任务失败: \(error)")
             nextWeekWorkTasks = []
         }
     }
@@ -202,23 +227,25 @@ class WorkManager: ObservableObject {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-        
+
         let request: NSFetchRequest<TaskItem> = TaskItem.fetchRequest()
-        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-            NSPredicate(format: "category == %@", "工作"),
-            NSPredicate(format: "dueDate >= %@ AND dueDate < %@", startOfDay as NSDate, endOfDay as NSDate)
-        ])
-        
+        // 获取当日所有类型的任务
+        request.predicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@", startOfDay as NSDate, endOfDay as NSDate)
+
         do {
-            let workTasks = try context.fetch(request)
-            let completedTasks = workTasks.filter { $0.isCompleted }
-            let ongoingTasks = workTasks.filter { !$0.isCompleted }
-            let totalTimeSpent = workTasks.reduce(0) { $0 + $1.safeTimeSpent }
-            let progressUpdates = workTasks.filter { $0.lastProgressUpdate != nil }.count
-            
+            let allTasks = try context.fetch(request)
+            let completedTasks = allTasks.filter { $0.isCompleted }
+            let ongoingTasks = allTasks.filter { !$0.isCompleted }
+            let totalTimeSpent = allTasks.reduce(0) { $0 + $1.safeTimeSpent }
+            let progressUpdates = allTasks.filter { $0.lastProgressUpdate != nil }.count
+
+            // 按类型分组任务
+            let tasksByCategory = Dictionary(grouping: allTasks) { $0.category ?? "其他" }
+
             let report = WorkDailyReport(
                 date: date,
-                workTasks: workTasks,
+                allTasks: allTasks,
+                tasksByCategory: tasksByCategory,
                 totalTimeSpent: totalTimeSpent,
                 completedTasks: completedTasks,
                 ongoingTasks: ongoingTasks,
@@ -226,11 +253,18 @@ class WorkManager: ObservableObject {
             )
             
             lastDailyReport = report
-            print("📊 生成每日工作报告: \(workTasks.count)个任务, \(String(format: "%.1f", totalTimeSpent))小时")
+            print("📊 生成日报: \(allTasks.count)个任务, 完成\(completedTasks.count)个")
+
+            // 按类型统计
+            for (category, tasks) in tasksByCategory {
+                let completed = tasks.filter { $0.isCompleted }.count
+                print("   - \(category): \(tasks.count)个任务, 完成\(completed)个")
+            }
+
             return report
         } catch {
-            print("❌ 生成每日报告失败: \(error)")
-            return WorkDailyReport(date: date, workTasks: [], totalTimeSpent: 0, completedTasks: [], ongoingTasks: [], progressUpdates: 0)
+            print("❌ 生成日报失败: \(error)")
+            return WorkDailyReport(date: date, allTasks: [], tasksByCategory: [:], totalTimeSpent: 0, completedTasks: [], ongoingTasks: [], progressUpdates: 0)
         }
     }
     
@@ -238,22 +272,26 @@ class WorkManager: ObservableObject {
         let calendar = Calendar.current
         let today = Date()
         guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: today) else { return }
-        
+
         let totalTimeSpent = thisWeekWorkTasks.reduce(0) { $0 + $1.timeSpent }
         let averageProgress = thisWeekWorkTasks.isEmpty ? 0 : thisWeekWorkTasks.reduce(0) { $0 + $1.workProgress } / Double(thisWeekWorkTasks.count)
         let completedCount = thisWeekWorkTasks.filter { $0.isCompleted }.count
         let ongoingCount = thisWeekWorkTasks.filter { !$0.isCompleted }.count
-        
+
+        // 按类型分组任务
+        let tasksByCategory = Dictionary(grouping: thisWeekWorkTasks) { $0.category ?? "其他" }
+
         weeklyOverview = WorkWeeklyOverview(
             weekStart: weekInterval.start,
             weekEnd: weekInterval.end,
-            allWorkTasks: thisWeekWorkTasks,
+            allTasks: thisWeekWorkTasks,
+            tasksByCategory: tasksByCategory,
             totalTimeSpent: totalTimeSpent,
             averageProgress: averageProgress,
             completedCount: completedCount,
             ongoingCount: ongoingCount
         )
-        
+
         print("📈 生成周度概览: \(thisWeekWorkTasks.count)个任务, 平均进度\(String(format: "%.1f", averageProgress))%")
     }
 
@@ -312,14 +350,14 @@ class WorkManager: ObservableObject {
             let groupedTasks = Dictionary(grouping: allTasks) { $0.category ?? "未分类" }
 
             return groupedTasks.map { category, tasks in
-                let workTasks = tasks.filter { $0.category == "工作" }
-                let completedCount = workTasks.filter { $0.isCompleted }.count
-                let totalTime = workTasks.reduce(0) { $0 + $1.timeSpent }
-                let completionRate = workTasks.isEmpty ? 0 : Double(completedCount) / Double(workTasks.count) * 100
+                // 统计该类型的所有任务，不再只限制工作类型
+                let completedCount = tasks.filter { $0.isCompleted }.count
+                let totalTime = tasks.reduce(0) { $0 + $1.timeSpent }
+                let completionRate = tasks.isEmpty ? 0 : Double(completedCount) / Double(tasks.count) * 100
 
                 return CategoryData(
                     category: category,
-                    taskCount: workTasks.count,
+                    taskCount: tasks.count,
                     timeSpent: totalTime,
                     completionRate: completionRate
                 )
@@ -398,17 +436,15 @@ class WorkManager: ObservableObject {
 
     private func getWorkTasksForWeek(_ weekInterval: DateInterval) -> [TaskItem] {
         let request: NSFetchRequest<TaskItem> = TaskItem.fetchRequest()
-        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-            NSPredicate(format: "category == %@", "工作"),
-            NSPredicate(format: "dueDate >= %@ AND dueDate < %@",
-                       weekInterval.start as NSDate,
-                       weekInterval.end as NSDate)
-        ])
+        // 获取该周所有类型的任务
+        request.predicate = NSPredicate(format: "dueDate >= %@ AND dueDate < %@",
+                                      weekInterval.start as NSDate,
+                                      weekInterval.end as NSDate)
 
         do {
             return try context.fetch(request)
         } catch {
-            print("❌ 获取周度工作任务失败: \(error)")
+            print("❌ 获取周度任务失败: \(error)")
             return []
         }
     }
@@ -451,8 +487,8 @@ class WorkManager: ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "📊 每日工作汇报"
         content.body = """
-        今日工作总结:
-        • 涉及工作: \(report.workTasks.count)项
+        今日活动总结:
+        • 涉及任务: \(report.allTasks.count)项
         • 已完成: \(report.completedTasks.count)项
         • 进行中: \(report.ongoingTasks.count)项
         • 时间投入: \(String(format: "%.1f", report.totalTimeSpent))小时

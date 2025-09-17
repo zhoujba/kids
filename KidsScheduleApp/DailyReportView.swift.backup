@@ -1,0 +1,537 @@
+import SwiftUI
+
+struct DailyReportView: View {
+    @Environment(\.dismiss) private var dismiss
+    let report: WorkDailyReport
+    @State private var showingShareSheet = false
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // 报告标题
+                    reportHeader
+                    
+                    // 任务统计
+                    taskStatistics
+
+                    // 分类统计
+                    categoryBreakdownSection
+
+                    // 已完成任务
+                    if !report.completedTasks.isEmpty {
+                        completedTasksSection
+                    }
+
+                    // 进行中任务
+                    if !report.ongoingTasks.isEmpty {
+                        ongoingTasksSection
+                    }
+                    
+                    // 时间分析
+                    timeAnalysisSection
+                    
+                    // 工作总结
+                    workSummarySection
+                }
+                .padding()
+            }
+            .navigationTitle("每日活动报告")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("关闭") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("分享") {
+                        showingShareSheet = true
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+            .sheet(isPresented: $showingShareSheet) {
+                ShareSheet(activityItems: [generateReportText()])
+            }
+        }
+    }
+    
+    // MARK: - 报告标题
+    private var reportHeader: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "chart.bar.doc.horizontal.fill")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                Text(report.formattedDate)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Spacer()
+            }
+            
+            Text("日常活动汇报")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .background(Color.blue.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    // MARK: - 任务统计
+    private var taskStatistics: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("📊 任务统计")
+                .font(.headline)
+                .fontWeight(.semibold)
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                StatisticCard(
+                    title: "总任务数",
+                    value: "\(report.allTasks.count)",
+                    subtitle: "项任务",
+                    color: .blue,
+                    icon: "list.bullet"
+                )
+
+                StatisticCard(
+                    title: "已完成",
+                    value: "\(report.completedTasks.count)",
+                    subtitle: "项任务",
+                    color: .green,
+                    icon: "checkmark.circle.fill"
+                )
+
+                StatisticCard(
+                    title: "完成率",
+                    value: "\(String(format: "%.1f", report.completionRate))",
+                    subtitle: "%",
+                    color: report.completionRate >= 80 ? .green : (report.completionRate >= 60 ? .orange : .red),
+                    icon: "percent"
+                )
+
+                StatisticCard(
+                    title: "时间投入",
+                    value: "\(String(format: "%.1f", report.totalTimeSpent))",
+                    subtitle: "小时",
+                    color: .purple,
+                    icon: "clock.fill"
+                )
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+    }
+
+    // MARK: - 分类统计
+    private var categoryBreakdownSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("📋 分类统计")
+                .font(.headline)
+                .fontWeight(.semibold)
+
+            categoryStatsContent
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+    }
+
+    private var categoryStatsContent: some View {
+        Group {
+            if report.tasksByCategory.isEmpty {
+                Text("今日暂无任务")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                categoryStatsList
+            }
+        }
+    }
+
+    private var categoryStatsList: some View {
+        ForEach(Array(report.tasksByCategory.keys.sorted()), id: \.self) { category in
+            categoryStatCard(for: category)
+        }
+    }
+
+    private func categoryStatCard(for category: String) -> some View {
+        let tasks = report.tasksByCategory[category] ?? []
+        let completed = tasks.filter { $0.isCompleted }.count
+        let completionRate = tasks.isEmpty ? 0 : Double(completed) / Double(tasks.count) * 100
+
+        return CategoryStatCard(
+            category: category,
+            totalTasks: tasks.count,
+            completedTasks: completed,
+            completionRate: completionRate,
+            icon: categoryIcon(for: category)
+        )
+    }
+
+    // MARK: - 已完成任务
+    private var completedTasksSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("✅ 已完成任务 (\(report.completedTasks.count)项)")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.green)
+            
+            ForEach(report.completedTasks, id: \.objectID) { task in
+                TaskReportCard(task: task, isCompleted: true)
+            }
+        }
+        .padding()
+        .background(Color.green.opacity(0.05))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.green.opacity(0.2), lineWidth: 1)
+        )
+    }
+    
+    // MARK: - 进行中任务
+    private var ongoingTasksSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("🔄 进行中任务 (\(report.ongoingTasks.count)项)")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.orange)
+            
+            ForEach(report.ongoingTasks, id: \.objectID) { task in
+                TaskReportCard(task: task, isCompleted: false)
+            }
+        }
+        .padding()
+        .background(Color.orange.opacity(0.05))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.orange.opacity(0.2), lineWidth: 1)
+        )
+    }
+    
+    // MARK: - 时间分析
+    private var timeAnalysisSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("⏱️ 时间分析")
+                .font(.headline)
+                .fontWeight(.semibold)
+            
+            VStack(spacing: 8) {
+                HStack {
+                    Text("总工作时长")
+                    Spacer()
+                    Text("\(String(format: "%.1f", report.totalTimeSpent))小时")
+                        .fontWeight(.medium)
+                }
+                
+                if !report.allTasks.isEmpty {
+                    HStack {
+                        Text("平均每项任务")
+                        Spacer()
+                        Text("\(String(format: "%.1f", report.totalTimeSpent / Double(report.allTasks.count)))小时")
+                            .fontWeight(.medium)
+                    }
+                }
+                
+                HStack {
+                    Text("工作效率")
+                    Spacer()
+                    Text(getEfficiencyText())
+                        .fontWeight(.medium)
+                        .foregroundColor(getEfficiencyColor())
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+    }
+    
+    // MARK: - 工作总结
+    private var workSummarySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("📝 工作总结")
+                .font(.headline)
+                .fontWeight(.semibold)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                if report.completedTasks.count > 0 {
+                    Text("✅ 今日成功完成 \(report.completedTasks.count) 项工作任务")
+                        .foregroundColor(.green)
+                }
+                
+                if report.ongoingTasks.count > 0 {
+                    Text("🔄 还有 \(report.ongoingTasks.count) 项工作正在进行中")
+                        .foregroundColor(.orange)
+                }
+                
+                if report.totalTimeSpent > 0 {
+                    Text("⏱️ 总计投入 \(String(format: "%.1f", report.totalTimeSpent)) 小时工作时间")
+                        .foregroundColor(.blue)
+                }
+                
+                if report.progressUpdates > 0 {
+                    Text("📈 更新了 \(report.progressUpdates) 项工作进度")
+                        .foregroundColor(.purple)
+                }
+            }
+            .font(.subheadline)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+    }
+    
+    // MARK: - 辅助方法
+    private func getEfficiencyText() -> String {
+        let completionRate = report.completionRate
+        if completionRate >= 90 {
+            return "优秀"
+        } else if completionRate >= 70 {
+            return "良好"
+        } else if completionRate >= 50 {
+            return "一般"
+        } else {
+            return "需改进"
+        }
+    }
+    
+    private func getEfficiencyColor() -> Color {
+        let completionRate = report.completionRate
+        if completionRate >= 90 {
+            return .green
+        } else if completionRate >= 70 {
+            return .blue
+        } else if completionRate >= 50 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+    
+    private func generateReportText() -> String {
+        var text = """
+        📊 \(report.formattedDate) 工作日报
+        
+        📈 活动统计：
+        • 涉及任务：\(report.allTasks.count)项
+        • 已完成：\(report.completedTasks.count)项
+        • 完成率：\(String(format: "%.1f", report.completionRate))%
+        • 时间投入：\(String(format: "%.1f", report.totalTimeSpent))小时
+        
+        """
+        
+        if !report.completedTasks.isEmpty {
+            text += "✅ 已完成工作：\n"
+            for task in report.completedTasks {
+                text += "• \(task.title ?? "未知任务")\n"
+            }
+            text += "\n"
+        }
+        
+        if !report.ongoingTasks.isEmpty {
+            text += "🔄 进行中工作：\n"
+            for task in report.ongoingTasks {
+                text += "• \(task.title ?? "未知任务") (\(task.progressPercentage)%)\n"
+            }
+        }
+        
+        return text
+    }
+
+// MARK: - 统计卡片
+struct StatisticCard: View {
+    let title: String
+    let value: String
+    let subtitle: String
+    let color: Color
+    let icon: String
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+            
+            HStack(alignment: .bottom, spacing: 2) {
+                Text(value)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(color)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(color.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - 任务报告卡片
+struct TaskReportCard: View {
+    let task: TaskItem
+    let isCompleted: Bool
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle.dashed")
+                .foregroundColor(isCompleted ? .green : .orange)
+                .font(.title3)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(task.title ?? "未知任务")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                HStack {
+                    if !isCompleted {
+                        Text("进度: \(task.progressPercentage)%")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if task.timeSpent > 0 {
+                        Text("⏱️ \(task.formattedTimeSpent)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 8)
+    }
+
+    // MARK: - 辅助方法
+    private func categoryIcon(for category: String) -> String {
+        switch category {
+        case "工作":
+            return "💼"
+        case "学习":
+            return "📚"
+        case "运动":
+            return "🏃"
+        case "娱乐":
+            return "🎮"
+        case "生活":
+            return "🏠"
+        case "其他":
+            return "📝"
+        default:
+            return "📋"
+        }
+    }
+}
+
+// MARK: - 分类统计卡片
+struct CategoryStatCard: View {
+    let category: String
+    let totalTasks: Int
+    let completedTasks: Int
+    let completionRate: Double
+    let icon: String
+
+    var body: some View {
+        HStack {
+            Text(icon)
+                .font(.title2)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(category)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text("\(completedTasks)/\(totalTasks) 完成")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("\(String(format: "%.0f", completionRate))%")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(completionRate >= 80 ? .green : (completionRate >= 60 ? .orange : .red))
+
+                ProgressView(value: completionRate, total: 100)
+                    .progressViewStyle(LinearProgressViewStyle(tint: completionRate >= 80 ? .green : (completionRate >= 60 ? .orange : .red)))
+                    .frame(width: 60)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+    }
+}
+
+// MARK: - 分享功能
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+#Preview {
+    let context = PersistenceController.preview.container.viewContext
+    
+    let task1 = TaskItem(context: context)
+    task1.title = "完成项目报告"
+    task1.category = "工作"
+    task1.isCompleted = true
+    task1.timeSpent = 4.5
+    task1.workProgress = 100
+
+    let task2 = TaskItem(context: context)
+    task2.title = "客户需求分析"
+    task2.category = "工作"
+    task2.isCompleted = false
+    task2.timeSpent = 2.0
+    task2.workProgress = 65
+
+    let task3 = TaskItem(context: context)
+    task3.title = "阅读技术文档"
+    task3.category = "学习"
+    task3.isCompleted = true
+    task3.timeSpent = 1.5
+    task3.workProgress = 100
+
+    let allTasks = [task1, task2, task3]
+    let tasksByCategory = Dictionary(grouping: allTasks) { $0.category ?? "其他" }
+
+    let report = WorkDailyReport(
+        date: Date(),
+        allTasks: allTasks,
+        tasksByCategory: tasksByCategory,
+        totalTimeSpent: 8.0,
+        completedTasks: [task1, task3],
+        ongoingTasks: [task2],
+        progressUpdates: 3
+    )
+    
+    return DailyReportView(report: report)
+}

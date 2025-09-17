@@ -17,7 +17,7 @@ struct WorkCenterView: View {
                 }
                 .padding()
             }
-            .navigationTitle("🏢 工作中心")
+            .navigationTitle("📋 活动中心")
             .onAppear {
                 workManager.refreshWorkData()
             }
@@ -37,13 +37,13 @@ struct WorkCenterView: View {
         }
     }
 
-    // MARK: - 今日工作汇报
+    // MARK: - 今日活动汇报
     private var todayWorkSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "chart.bar.fill")
                     .foregroundColor(.blue)
-                Text("📊 今日工作汇报")
+                Text("📊 今日活动汇报")
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
@@ -82,9 +82,9 @@ struct WorkCenterView: View {
                 StatCard(title: "总时长", value: String(format: "%.1fh", totalTime), color: .blue)
             }
 
-            // 今日工作任务列表
+            // 今日任务列表
             if workManager.todayWorkTasks.isEmpty {
-                Text("今日暂无工作任务")
+                Text("今日暂无任务")
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
@@ -103,13 +103,13 @@ struct WorkCenterView: View {
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
 
-    // MARK: - 本周工作概览
+    // MARK: - 本周活动概览
     private var weeklyOverviewSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "calendar.badge.clock")
                     .foregroundColor(.purple)
-                Text("📈 本周工作概览")
+                Text("📈 本周活动概览")
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
@@ -123,7 +123,7 @@ struct WorkCenterView: View {
             if let overview = workManager.weeklyOverview {
                 // 周度统计
                 HStack(spacing: 12) {
-                    StatCard(title: "总任务", value: "\(overview.allWorkTasks.count)", color: .blue)
+                    StatCard(title: "总任务", value: "\(overview.allTasks.count)", color: .blue)
                     StatCard(title: "已完成", value: "\(overview.completedCount)", color: .green)
                     StatCard(title: "平均进度", value: "\(Int(overview.averageProgress))%", color: .purple)
                 }
@@ -157,18 +157,18 @@ struct WorkCenterView: View {
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
 
-    // MARK: - 下周工作规划
+    // MARK: - 下周活动规划
     private var nextWeekPlanSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "calendar.badge.plus")
                     .foregroundColor(.green)
-                Text("📅 下周工作规划")
+                Text("📅 下周活动规划")
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
                 Button("添加计划") {
-                    // TODO: 实现添加下周工作计划功能
+                    // TODO: 实现添加下周活动计划功能
                 }
                 .font(.caption)
                 .padding(.horizontal, 12)
@@ -180,10 +180,10 @@ struct WorkCenterView: View {
 
             if workManager.nextWeekWorkTasks.isEmpty {
                 VStack(spacing: 8) {
-                    Text("💡 下周工作规划")
+                    Text("💡 下周活动规划")
                         .font(.subheadline)
                         .fontWeight(.medium)
-                    Text("暂无下周工作计划，建议提前规划工作安排")
+                    Text("暂无下周活动计划，建议提前规划各类活动安排")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
